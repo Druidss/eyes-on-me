@@ -39,6 +39,7 @@ backend/build/
 
 # === Tools (local binaries, not redistributable) ===
 tools/TobiiStream/
+tools/SDK
 
 # === OS ===
 .DS_Store
