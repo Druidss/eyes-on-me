@@ -72,7 +72,7 @@ def _zmq_loop(endpoint: str, screen_w: int, screen_h: int) -> None:
     """Background thread: subscribe to TobiiStream and feed gaze_store."""
     # Late import so the module loads even without pyzmq.
     import time
-    from datetime import UTC, datetime
+    from datetime import datetime, timezone
 
     import zmq  # noqa: F811
 
@@ -137,7 +137,7 @@ def _zmq_loop(endpoint: str, screen_w: int, screen_h: int) -> None:
                     buffer.append(
                         {
                             "session_id": ctx.session_id,
-                            "received_at": datetime.now(UTC).isoformat(),
+                            "received_at": datetime.now(timezone.utc).isoformat(),
                             "x_norm": round(x, 4),
                             "y_norm": round(y, 4),
                             "x_raw_px": round(x_raw, 1),
