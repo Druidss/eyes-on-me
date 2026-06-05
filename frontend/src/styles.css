@@ -661,6 +661,55 @@ body {
   z-index: 1;
 }
 
+/* === Conversation timer === */
+
+.conversation-timer {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 18px;
+  background: var(--overlay-bg-medium);
+  border-radius: var(--radius-sm);
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dark-primary);
+  z-index: 3;
+  pointer-events: none;
+  transition: background var(--transition-fast), color var(--transition-fast);
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+.conversation-timer-time {
+  font-weight: 600;
+}
+
+.conversation-timer-limit {
+  font-size: var(--text-xs);
+  color: var(--text-dark-muted);
+  font-weight: 400;
+}
+
+.conversation-timer.timer-warning {
+  background: rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+}
+
+.conversation-timer.timer-warning .conversation-timer-limit {
+  color: rgba(251, 191, 36, 0.7);
+}
+
+.conversation-timer.timer-expired {
+  background: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+
+.conversation-timer.timer-expired .conversation-timer-limit {
+  color: rgba(252, 165, 165, 0.7);
+}
+
 /* === Calibration / Gaze Verification === */
 
 .calibration-source {

@@ -223,7 +223,10 @@ export class StudyFlow {
       sessionId: this.sessionId,
       reporter: this.reporter,
     });
-    this.conversationController.render(wrapper, step, this._selectedAvatar, resolvedCondition);
+    this.conversationController.render(
+      wrapper, step, this._selectedAvatar, resolvedCondition,
+      () => this.advance(),
+    );
     wrapper.appendChild(this.createNextButton());
   }
 

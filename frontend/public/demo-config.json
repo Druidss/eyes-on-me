@@ -100,7 +100,8 @@
       {
         "id": "condition1",
         "type": "conversation",
-        "condition": "baseline"
+        "condition": "baseline",
+        "duration_seconds": 180
       },
       {
         "id": "questionnaire1",
@@ -124,7 +125,8 @@
       {
         "id": "condition2",
         "type": "conversation",
-        "condition": "gazeaware"
+        "condition": "gazeaware",
+        "duration_seconds": 180
       },
       {
         "id": "questionnaire2",
@@ -301,23 +303,58 @@
       "system_base": "(demo mode — Realtime disabled)",
       "system_end": "(demo mode — Realtime disabled)",
       "questions": [
-        { "id": "q01", "text": "What is the capital of France?" },
-        { "id": "q02", "text": "Who was the first person to walk on the Moon?" },
-        { "id": "q03", "text": "Who wrote 'Romeo and Juliet'?" },
-        { "id": "q04", "text": "Who developed the theory of relativity?" },
-        { "id": "q05", "text": "In which country is the Great Sphinx located?" },
-        { "id": "q06", "text": "Which ocean is the largest on Earth?" },
-        { "id": "q07", "text": "Which planet is the largest in the solar system?" },
-        { "id": "q08", "text": "Who painted the 'Mona Lisa'?" },
-        { "id": "q09", "text": "What ship sank in 1912 after hitting an iceberg?" },
-        { "id": "q10", "text": "Which is the largest land animal?" }
+        {
+          "id": "q01",
+          "text": "What is the capital of France?"
+        },
+        {
+          "id": "q02",
+          "text": "Who was the first person to walk on the Moon?"
+        },
+        {
+          "id": "q03",
+          "text": "Who wrote 'Romeo and Juliet'?"
+        },
+        {
+          "id": "q04",
+          "text": "Who developed the theory of relativity?"
+        },
+        {
+          "id": "q05",
+          "text": "In which country is the Great Sphinx located?"
+        },
+        {
+          "id": "q06",
+          "text": "Which ocean is the largest on Earth?"
+        },
+        {
+          "id": "q07",
+          "text": "Which planet is the largest in the solar system?"
+        },
+        {
+          "id": "q08",
+          "text": "Who painted the 'Mona Lisa'?"
+        },
+        {
+          "id": "q09",
+          "text": "What ship sank in 1912 after hitting an iceberg?"
+        },
+        {
+          "id": "q10",
+          "text": "Which is the largest land animal?"
+        }
       ]
     }
   },
   "gaze_profiles": {
     "profiles": {
       "default": {
-        "states": ["baseline", "gazeaware_pending", "gazeaware", "gaze_break"],
+        "states": [
+          "baseline",
+          "gazeaware_pending",
+          "gazeaware",
+          "gaze_break"
+        ],
         "pending_time_ms": 300,
         "mutual_time_ms": 3600,
         "break_time_ms": 1250,

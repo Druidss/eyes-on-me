@@ -16,10 +16,6 @@ import { MutualGazeTracker } from "../gaze/MutualGazeTracker.js";
 import type { BackendReporter } from "../telemetry/BackendReporter.js";
 import type { RealtimeClient } from "../realtime/RealtimeClient.js";
 import { renderVoiceBar } from "./renderVoiceBar.js";
-// P1 overlay controller for zone visualization during development.
-import { DemoControllerP1 } from "../spy/DemoControllerP1.js";
-// P1 zone-tracking logic, driven by the original gaze provider pipeline.
-import { GazeZoneTracker } from "../spy/GazeZoneTracker.js";
 
 /**
  * Manages the conversation step lifecycle: 3D viewer, gaze tracking,
@@ -37,10 +33,6 @@ export class ConversationStepController {
   private realtimeClient: RealtimeClient | null = null;
   private remoteStream: MediaStream | null = null;
   private lipSyncAttached = false;
-  // P1 demo overlay instance
-  private p1DemoController: DemoControllerP1 | null = null;
-  // P1 zone-tracking logic instance for zone, dwell, and fixation state.
-  private p1ZoneTracker: GazeZoneTracker | null = null;
 
   private stepId: string | undefined;
   private condition: string | undefined;
@@ -49,6 +41,13 @@ export class ConversationStepController {
   private readonly runtime: RuntimeInfo;
   private readonly sessionId: string;
   private readonly reporter: BackendReporter;
+
+  // Timer state
+  private timerIntervalId: ReturnType<typeof setInterval> | null = null;
+  private timerStartTime = 0;
+  private timerEl: HTMLElement | null = null;
+  private onTimeout: (() => void) | null = null;
+  private durationSeconds: number | null = null;
 
   constructor(deps: {
     config: StudyConfig;
@@ -68,9 +67,12 @@ export class ConversationStepController {
     step: FlowStep,
     selectedAvatar: Avatar | null,
     resolvedCondition?: string,
+    onTimeout?: () => void,
   ): void {
     this.stepId = step.id;
     this.condition = resolvedCondition ?? step.condition;
+    this.onTimeout = onTimeout ?? null;
+    this.durationSeconds = step.duration_seconds ?? null;
 
     // Debug overlays are visible in demo mode or with ?debug, hidden for real participants
     const showDebug = new URLSearchParams(window.location.search).has("demo")
@@ -122,20 +124,28 @@ export class ConversationStepController {
     if (!showDebug) eyeLabel.style.display = "none";
     viewerContainer.appendChild(eyeLabel);
 
-    wrapper.appendChild(viewerContainer);
-
-    // P1 integration:
-    // when ?p1demo is present, keep the normal study conversation scene
-    // but attach the P1 zone overlay on top of the existing viewer container.
-    if (new URLSearchParams(window.location.search).has("p1demo")) {
-      this.p1DemoController = new DemoControllerP1();
-      this.p1ZoneTracker = new GazeZoneTracker();
-      this.p1DemoController.attachToScene(viewerContainer, {
-        title: "P1 Demo Controller",
-        showOverlay: true,
-      });
+    // Elapsed timer (visible when duration_seconds is set)
+    const timerContainer = document.createElement("div");
+    timerContainer.className = "conversation-timer";
+    if (this.durationSeconds == null) {
+      timerContainer.style.display = "none";
     }
-    //_________________________________________________________________
+    const timerLabel = document.createElement("span");
+    timerLabel.className = "conversation-timer-time";
+    timerLabel.textContent = "0:00";
+    timerContainer.appendChild(timerLabel);
+    if (this.durationSeconds != null) {
+      const timerLimit = document.createElement("span");
+      timerLimit.className = "conversation-timer-limit";
+      const mins = Math.floor(this.durationSeconds / 60);
+      const secs = this.durationSeconds % 60;
+      timerLimit.textContent = ` / ${mins}:${String(secs).padStart(2, "0")}`;
+      timerContainer.appendChild(timerLimit);
+    }
+    viewerContainer.appendChild(timerContainer);
+    this.timerEl = timerLabel;
+
+    wrapper.appendChild(viewerContainer);
 
     // Status element for loading feedback
     const status = document.createElement("p");
@@ -208,6 +218,7 @@ export class ConversationStepController {
 
   /** Tear down viewer, gaze loop, and realtime client. Idempotent. */
   destroy(): void {
+    this.stopTimer();
     this.syncGazeContext(null, null);
     this.detachLipSync();
 
@@ -215,13 +226,6 @@ export class ConversationStepController {
       this.realtimeClient.disconnect();
       this.realtimeClient = null;
     }
-
-    // P1 temporary integration cleanup:
-    // remove the development-only overlay when leaving the conversation step.
-    this.p1DemoController?.destroy();
-    this.p1DemoController = null;
-    this.p1ZoneTracker = null;
-    //_________________________________________________________________
 
     if (this.gazeLoopId !== null) {
       cancelAnimationFrame(this.gazeLoopId);
@@ -241,6 +245,51 @@ export class ConversationStepController {
   }
 
   // --- Internal ---
+
+  /** Start the elapsed timer. Updates every second; auto-advances on timeout. */
+  private startTimer(): void {
+    if (this.durationSeconds == null) return;
+    this.timerStartTime = performance.now();
+    const duration = this.durationSeconds;
+    const WARNING_THRESHOLD = 30; // seconds remaining
+
+    this.timerIntervalId = setInterval(() => {
+      const elapsed = Math.floor((performance.now() - this.timerStartTime) / 1000);
+      const mins = Math.floor(elapsed / 60);
+      const secs = elapsed % 60;
+
+      if (this.timerEl) {
+        this.timerEl.textContent = `${mins}:${String(secs).padStart(2, "0")}`;
+      }
+
+      // Warning state — last N seconds
+      const remaining = duration - elapsed;
+      const container = this.timerEl?.closest(".conversation-timer");
+      if (container) {
+        container.classList.toggle("timer-warning", remaining <= WARNING_THRESHOLD && remaining > 0);
+        container.classList.toggle("timer-expired", remaining <= 0);
+      }
+
+      if (elapsed >= duration) {
+        this.stopTimer();
+        this.reporter.emit("conversation.timer_expired", {
+          duration_seconds: duration,
+          elapsed_seconds: elapsed,
+          condition: this.condition ?? null,
+          step_id: this.stepId ?? null,
+        });
+        this.onTimeout?.();
+      }
+    }, 1000);
+  }
+
+  /** Stop the timer interval. */
+  private stopTimer(): void {
+    if (this.timerIntervalId !== null) {
+      clearInterval(this.timerIntervalId);
+      this.timerIntervalId = null;
+    }
+  }
 
   private initViewer(
     canvas: HTMLCanvasElement,
@@ -296,6 +345,9 @@ export class ConversationStepController {
 
         // Signal avatar readiness — releases the deferred first assistant response
         this.realtimeClient?.signalReady();
+
+        // Start elapsed timer (auto-advances when duration reached)
+        this.startTimer();
 
         this.startGazeTracking(container, debugDot, debugLabel, fsmLabel, mgLabel, eyeLabel, condition);
       })
@@ -473,20 +525,6 @@ export class ConversationStepController {
         container.clientWidth,
         container.clientHeight,
       );
-
-      // P1: Zone-tracking integration
-      // feed the original kit's gaze provider output + face-hit result into
-      // the P1 tracker, then push the live snapshot into the P1 overlay HUD.
-      const p1Snapshot = this.p1ZoneTracker?.update(gaze, now, isHit);
-      if (p1Snapshot) {
-        this.p1DemoController?.updateDebugSnapshot({
-          activeZone: p1Snapshot.active_zone,
-          dwellMs: p1Snapshot.active_zone.dwell_ms,
-          fixationCount: p1Snapshot.fixation.total_count,
-          perZoneCounts: p1Snapshot.fixation.per_zone_counts,
-        });
-      }
-      //______________________________________________________________________
 
       // Gaze cursor intersection feedback
       gazeCursor.classList.toggle("intersecting", isHit);

@@ -55,7 +55,8 @@
     {
       "id": "condition1",
       "type": "conversation",
-      "condition": "baseline"
+      "condition": "baseline",
+"duration_seconds": 180
     },
     {
       "id": "questionnaire1",
@@ -79,7 +80,8 @@
     {
       "id": "condition2",
       "type": "conversation",
-      "condition": "gazeaware"
+      "condition": "gazeaware",
+"duration_seconds": 180
     },
     {
       "id": "questionnaire2",

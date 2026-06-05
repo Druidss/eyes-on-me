@@ -104,6 +104,7 @@ class FlowStep(BaseModel):
     fields: list[FormField] | None = None
     condition: str | None = None
     questionnaire_id: str | None = None
+    duration_seconds: int | None = Field(default=None, ge=1)
 
 
 class Flow(BaseModel):

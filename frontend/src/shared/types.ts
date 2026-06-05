@@ -89,6 +89,8 @@ export interface FlowStep {
   fields?: FormField[];
   condition?: string;
   questionnaire_id?: string;
+  /** Max duration in seconds for conversation steps. Timer counts up; auto-advances when reached. */
+  duration_seconds?: number;
 }
 
 export interface Flow {
