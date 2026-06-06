@@ -88,6 +88,7 @@ class FormField(BaseModel):
 class FlowStep(BaseModel):
     id: str
     type: Literal[
+        "hero",
         "info",
         "consent",
         "form",
@@ -99,6 +100,9 @@ class FlowStep(BaseModel):
     title: str | None = None
     content: str | None = None
     content_blocks: list[str] | None = None
+    tagline: str | None = None
+    footer: str | None = None
+    bg_image: str | None = None
     button_label: str | None = None
     consent_label: str | None = None
     fields: list[FormField] | None = None

@@ -1,56 +1,18 @@
 {
   "steps": [
     {
-      "id": "welcome",
-      "type": "info",
-      "title": "Welcome",
-      "content_blocks": [
-        "Thank you for taking part in this virtual interaction study.",
-        "In this study, you will interact with a virtual quizmaster and answer general-knowledge questions.",
-        "We are not evaluating your knowledge. Instead, we are interested in how people experience and respond to different avatar behaviors during the interaction."
-      ]
-    },
-    {
-      "id": "consent",
-      "type": "consent",
-      "title": "Information and Consent",
-      "content": "Please read the following before you continue. Participation is voluntary. You may stop at any time without any disadvantage.",
-      "consent_label": "I agree to participate in this study."
-    },
-    {
-      "id": "demographic",
-      "type": "form",
-      "title": "Demographic Information",
-      "fields": [
-        { "id": "age", "type": "number", "label": "Age", "required": true, "min": 18, "max": 99 },
-        { "id": "gender", "type": "select", "label": "Gender", "options": ["Male", "Female", "Diverse", "Prefer not to say"], "required": true },
-        { "id": "corrective_lenses", "type": "select", "label": "Do you currently use corrective lenses?", "options": ["Yes", "No", "Prefer not to say"], "required": true }
-      ]
+      "id": "Start",
+      "type": "hero",
+      "title": "Eyes On Me",
+      "tagline": "A Voice Interrogation Game",
+      "button_label": "Start Game",
+      "footer": "Harbor City · 1949",
+      "bg_image": "assets/scene-start-bg.png"
     },
     {
       "id": "calibration",
       "type": "calibration",
       "title": "Gaze Verification"
-    },
-    {
-      "id": "character_selection",
-      "type": "avatar_selection",
-      "title": "Avatar Selection",
-      "content": "Please choose the avatar you would like to interact with during the study."
-    },
-    {
-      "id": "round1_instructions",
-      "type": "info",
-      "title": "Round 1",
-      "content_blocks": [
-        "You are about to begin the first quiz round.",
-        "Please speak clearly and at a natural pace.",
-        "Try not to interrupt the avatar while it is speaking.",
-        "If you do not know an answer, simply say \"I don't know.\" If you did not hear the question clearly, you may ask for it to be repeated.",
-        "If the avatar misunderstands you, do not worry — just continue with the quiz.",
-        "When you are ready, click the button below to begin."
-      ],
-      "button_label": "Start Quiz"
     },
     {
       "id": "condition1",
@@ -60,51 +22,8 @@
     {
       "id": "questionnaire1",
       "type": "questionnaire",
-      "title": "Questionnaire — Round 1",
+      "title": "Questionnaire",
       "questionnaire_id": "round"
-    },
-    {
-      "id": "round2_instructions",
-      "type": "info",
-      "title": "Round 2",
-      "content_blocks": [
-        "You are about to begin the second quiz round.",
-        "The interaction works the same way as before.",
-        "Please continue to speak clearly and at a natural pace.",
-        "If the avatar misunderstands you or you miss a question, just continue and answer as well as you can.",
-        "When you are ready, click the button below to begin."
-      ],
-      "button_label": "Start Quiz"
-    },
-    {
-      "id": "condition2",
-      "type": "conversation",
-      "condition": "gazeaware"
-    },
-    {
-      "id": "questionnaire2",
-      "type": "questionnaire",
-      "title": "Questionnaire — Round 2",
-      "questionnaire_id": "round"
-    },
-    {
-      "id": "comparison",
-      "type": "questionnaire",
-      "questionnaire_id": "comparison"
-    },
-    {
-      "id": "feedback",
-      "type": "questionnaire",
-      "questionnaire_id": "feedback"
-    },
-    {
-      "id": "ending",
-      "type": "info",
-      "title": "Thank You!",
-      "content_blocks": [
-        "Thank you for participating in this study.",
-        "You may now close this window."
-      ]
     }
   ]
 }

@@ -74,6 +74,7 @@ export interface FormField {
 export interface FlowStep {
   id: string;
   type:
+    | "hero"
     | "info"
     | "consent"
     | "form"
@@ -84,6 +85,9 @@ export interface FlowStep {
   title?: string;
   content?: string;
   content_blocks?: string[];
+  tagline?: string;
+  footer?: string;
+  bg_image?: string;
   button_label?: string;
   consent_label?: string;
   fields?: FormField[];
