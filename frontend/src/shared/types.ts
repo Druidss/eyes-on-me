@@ -111,6 +111,11 @@ export interface Avatars {
   avatars: Avatar[];
 }
 
+export interface QuizClue {
+  tag: string;
+  text: string;
+}
+
 export interface QuestionnaireItem {
   id: string;
   text: string;
@@ -120,6 +125,13 @@ export interface QuestionnaireItem {
   scale_labels?: string[];
   options?: string[];
   required: boolean;
+  answer?: number;
+  branch?: string;
+  clues?: QuizClue[];
+  section_key?: string;
+  section_title?: string;
+  section_zh?: string;
+  section_note?: string;
 }
 
 export interface Questionnaire {

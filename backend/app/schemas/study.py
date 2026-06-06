@@ -132,6 +132,11 @@ class Avatars(BaseModel):
 # --- questionnaires.json ---
 
 
+class QuizClue(BaseModel):
+    tag: str
+    text: str
+
+
 class QuestionnaireItem(BaseModel):
     id: str
     text: str
@@ -141,6 +146,13 @@ class QuestionnaireItem(BaseModel):
     scale_labels: list[str] | None = None
     options: list[str] | None = None
     required: bool = False
+    answer: int | None = None
+    branch: str | None = None
+    clues: list[QuizClue] | None = None
+    section_key: str | None = None
+    section_title: str | None = None
+    section_zh: str | None = None
+    section_note: str | None = None
 
 
 class Questionnaire(BaseModel):
