@@ -16,10 +16,12 @@ import { MutualGazeTracker } from "../gaze/MutualGazeTracker.js";
 import type { BackendReporter } from "../telemetry/BackendReporter.js";
 import type { RealtimeClient } from "../realtime/RealtimeClient.js";
 import { renderVoiceBar } from "./renderVoiceBar.js";
-// P1 overlay controller for zone visualization during development.
+// P1 overlay controller for zone visualization during development
 import { DemoControllerP1 } from "../spy/DemoControllerP1.js";
-// P1 zone-tracking logic, driven by the original gaze provider pipeline.
+// P1 zone-tracking logic, driven by the original gaze provider pipeline
 import { GazeZoneTracker } from "../spy/GazeZoneTracker.js";
+// P1 suspicion metric
+import { SuspicionMetric } from "../spy/SuspicionMetric.js";
 
 /**
  * Manages the conversation step lifecycle: 3D viewer, gaze tracking,
@@ -41,6 +43,8 @@ export class ConversationStepController {
   private p1DemoController: DemoControllerP1 | null = null;
   // P1 zone-tracking logic instance for zone, dwell, and fixation state.
   private p1ZoneTracker: GazeZoneTracker | null = null;
+  // P1 suspicion-metric instance
+  private p1SuspicionMetric: SuspicionMetric | null = null;
 
   private stepId: string | undefined;
   private condition: string | undefined;
@@ -130,6 +134,8 @@ export class ConversationStepController {
     if (new URLSearchParams(window.location.search).has("p1demo")) {
       this.p1DemoController = new DemoControllerP1();
       this.p1ZoneTracker = new GazeZoneTracker();
+      // P1 suspicion 
+      this.p1SuspicionMetric = new SuspicionMetric();
       this.p1DemoController.attachToScene(viewerContainer, {
         title: "P1 Demo Controller",
         showOverlay: true,
@@ -221,6 +227,7 @@ export class ConversationStepController {
     this.p1DemoController?.destroy();
     this.p1DemoController = null;
     this.p1ZoneTracker = null;
+    this.p1SuspicionMetric = null;
     //_________________________________________________________________
 
     if (this.gazeLoopId !== null) {
@@ -478,12 +485,20 @@ export class ConversationStepController {
       // feed the original kit's gaze provider output + face-hit result into
       // the P1 tracker, then push the live snapshot into the P1 overlay HUD.
       const p1Snapshot = this.p1ZoneTracker?.update(gaze, now, isHit);
+      const p1SuspicionSnapshot = p1Snapshot
+        ? this.p1SuspicionMetric?.update({
+            zoneSnapshot: p1Snapshot,
+            nowMs: now,
+          })
+        : null;
       if (p1Snapshot) {
         this.p1DemoController?.updateDebugSnapshot({
           activeZone: p1Snapshot.active_zone,
           dwellMs: p1Snapshot.active_zone.dwell_ms,
           fixationCount: p1Snapshot.fixation.total_count,
           perZoneCounts: p1Snapshot.fixation.per_zone_counts,
+          suspicionValue: p1SuspicionSnapshot?.value,
+          suspicionState: p1SuspicionSnapshot?.state,
         });
       }
       //______________________________________________________________________
