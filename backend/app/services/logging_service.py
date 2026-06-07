@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from app.schemas.events import LogEvent
@@ -42,7 +42,7 @@ class LoggingService:
 
         marker = LogEvent(
             schema_version=1,
-            timestamp=datetime.now(UTC).isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             session_id=session_id,
             event_type="session.started",
             data=data,

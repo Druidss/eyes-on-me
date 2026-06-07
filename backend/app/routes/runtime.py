@@ -9,9 +9,9 @@ router = APIRouter()
 def runtime() -> dict:
     tobii_connected = False
     if settings.tobii_enabled:
-        from app.adapters import tobii
+        from app.adapters import tobii_pro, tobii
 
-        tobii_connected = tobii.is_running()
+        tobii_connected = tobii_pro.is_running() or tobii.is_running()
 
     result: dict = {
         "env": settings.app_env,

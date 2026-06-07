@@ -88,6 +88,7 @@ class FormField(BaseModel):
 class FlowStep(BaseModel):
     id: str
     type: Literal[
+        "hero",
         "info",
         "consent",
         "form",
@@ -99,6 +100,9 @@ class FlowStep(BaseModel):
     title: str | None = None
     content: str | None = None
     content_blocks: list[str] | None = None
+    tagline: str | None = None
+    footer: str | None = None
+    bg_image: str | None = None
     button_label: str | None = None
     consent_label: str | None = None
     fields: list[FormField] | None = None
@@ -128,6 +132,11 @@ class Avatars(BaseModel):
 # --- questionnaires.json ---
 
 
+class QuizClue(BaseModel):
+    tag: str
+    text: str
+
+
 class QuestionnaireItem(BaseModel):
     id: str
     text: str
@@ -137,6 +146,13 @@ class QuestionnaireItem(BaseModel):
     scale_labels: list[str] | None = None
     options: list[str] | None = None
     required: bool = False
+    answer: int | None = None
+    branch: str | None = None
+    clues: list[QuizClue] | None = None
+    section_key: str | None = None
+    section_title: str | None = None
+    section_zh: str | None = None
+    section_note: str | None = None
 
 
 class Questionnaire(BaseModel):

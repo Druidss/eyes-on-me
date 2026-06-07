@@ -51,8 +51,10 @@ export async function bootstrap(): Promise<void> {
     return;
   }
 
-  // --- Experimenter start screen ---
-  const metadata = await showExperimentStartScreen(app, config, runtime);
+  // --- Experimenter start screen (skip in demo mode) ---
+  const metadata = demoMode
+    ? { participant_id: `demo-${Date.now()}` }
+    : await showExperimentStartScreen(app, config, runtime);
 
   // --- Session ---
   let sessionId: string;

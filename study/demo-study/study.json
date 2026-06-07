@@ -4,10 +4,11 @@
   "name": "Gaze-Aware Avatar Study",
   "description": "Within-subjects study comparing baseline and gaze-aware avatar conditions during a quiz conversation.",
   "study_mode": "within_subjects",
-  "conditions": ["baseline", "gazeaware"],
+  "conditions": ["baseline"],
   "questions_per_condition": 5,
   "assignment": {
-    "condition_order_mode": "counterbalanced",
-    "question_order_mode": "shuffle"
+    "condition_order_mode": "fixed",
+    "fixed_condition_order": ["baseline"],
+    "question_order_mode": "fixed"
   }
 }

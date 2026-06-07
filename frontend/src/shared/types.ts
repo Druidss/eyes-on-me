@@ -74,6 +74,7 @@ export interface FormField {
 export interface FlowStep {
   id: string;
   type:
+    | "hero"
     | "info"
     | "consent"
     | "form"
@@ -84,6 +85,9 @@ export interface FlowStep {
   title?: string;
   content?: string;
   content_blocks?: string[];
+  tagline?: string;
+  footer?: string;
+  bg_image?: string;
   button_label?: string;
   consent_label?: string;
   fields?: FormField[];
@@ -107,6 +111,11 @@ export interface Avatars {
   avatars: Avatar[];
 }
 
+export interface QuizClue {
+  tag: string;
+  text: string;
+}
+
 export interface QuestionnaireItem {
   id: string;
   text: string;
@@ -116,6 +125,13 @@ export interface QuestionnaireItem {
   scale_labels?: string[];
   options?: string[];
   required: boolean;
+  answer?: number;
+  branch?: string;
+  clues?: QuizClue[];
+  section_key?: string;
+  section_title?: string;
+  section_zh?: string;
+  section_note?: string;
 }
 
 export interface Questionnaire {

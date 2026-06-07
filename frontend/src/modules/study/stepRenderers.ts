@@ -42,6 +42,13 @@ export function renderInfoStep(
   if (step.id !== "ending") {
     wrapper.appendChild(createNextButton(step.button_label));
   }
+
+  if (step.footer) {
+    const footer = document.createElement("p");
+    footer.className = "info-footer";
+    footer.textContent = step.footer;
+    wrapper.appendChild(footer);
+  }
 }
 
 // --- Consent ---
@@ -328,6 +335,113 @@ export function renderQuestionnaireStep(
   }
 
   renderQuestionnaire(wrapper, qId, questionnaire, onResult, step.title);
+}
+
+// --- Hero (Start screen) ---
+
+const EYE_SVG = `<svg class="hero-eye-mark" width="78" height="78" viewBox="0 0 64 64" aria-hidden="true" fill="none"
+  stroke="#ebe1c9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M3 32 C 14 13,50 13,61 32 C 50 51,14 51,3 32 Z"/>
+  <circle cx="32" cy="32" r="10.5" stroke="#d4a64a" stroke-width="2.4"/>
+  <circle class="hero-pupil" cx="32" cy="32" r="5" fill="#ebe1c9" stroke="none"/>
+</svg>`;
+
+export function renderHeroStep(
+  wrapper: HTMLElement,
+  step: FlowStep,
+  { advance }: StepCallbacks,
+): void {
+  wrapper.classList.add("hero-step");
+
+  // Background image
+  if (step.bg_image) {
+    const bg = document.createElement("div");
+    bg.className = "hero-bg";
+    bg.style.backgroundImage = `url("${import.meta.env.BASE_URL}${step.bg_image}")`;
+    wrapper.appendChild(bg);
+  }
+
+  // Scrims (vignette + bottom gradient)
+  const scrimV = document.createElement("div");
+  scrimV.className = "hero-scrim-vignette";
+  wrapper.appendChild(scrimV);
+
+  const scrimB = document.createElement("div");
+  scrimB.className = "hero-scrim-bottom";
+  wrapper.appendChild(scrimB);
+
+  // Film grain
+  const grain = document.createElement("div");
+  grain.className = "hero-grain";
+  wrapper.appendChild(grain);
+
+  // Content layer
+  const content = document.createElement("div");
+  content.className = "hero-content";
+
+  // Eyebrow: ── Harbor City · 1949 ──
+  const eyebrow = document.createElement("div");
+  eyebrow.className = "hero-eyebrow";
+  eyebrow.innerHTML = `<span class="hero-rule"></span>${step.footer ?? ""}<span class="hero-rule"></span>`;
+  content.appendChild(eyebrow);
+
+  // Eye + wordmark on same row
+  const lockupRow = document.createElement("div");
+  lockupRow.className = "hero-lockup-row";
+  lockupRow.innerHTML = EYE_SVG;
+
+  const wordmark = document.createElement("h1");
+  wordmark.className = "hero-wordmark";
+  // Split title: "Eyes On Me" → "Eyes" + "On Me" (middle word gold)
+  const words = (step.title ?? "Eyes On Me").split(" ");
+  if (words.length >= 3) {
+    wordmark.innerHTML = `${words[0]} <span class="hero-on">${words[1]}</span> ${words.slice(2).join(" ")}`;
+  } else {
+    wordmark.textContent = step.title ?? "Eyes On Me";
+  }
+  lockupRow.appendChild(wordmark);
+
+  const lockup = document.createElement("div");
+  lockup.className = "hero-lockup";
+  lockup.appendChild(lockupRow);
+  content.appendChild(lockup);
+
+  // Tagline
+  if (step.tagline) {
+    const tagline = document.createElement("p");
+    tagline.className = "hero-tagline";
+    tagline.textContent = step.tagline;
+    content.appendChild(tagline);
+  }
+
+  // Start button
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "hero-btn";
+  btn.innerHTML = `<span class="hero-btn-fill"></span>
+    <svg class="hero-btn-ico" width="18" height="18" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 4l14 8-14 8V4z"/>
+    </svg>
+    <span class="hero-btn-label">${step.button_label ?? "Start"}</span>`;
+  btn.addEventListener("click", () => advance());
+  content.appendChild(btn);
+
+  const press = document.createElement("p");
+  press.className = "hero-press";
+  press.textContent = "Press to begin the investigation";
+  content.appendChild(press);
+
+  wrapper.appendChild(content);
+
+  // Bottom-right status footer (tracker status)
+  const footer = document.createElement("div");
+  footer.className = "hero-footer";
+  footer.innerHTML = `<span class="hero-footer-right">
+    <span class="hero-dot"></span>
+    <span>Tracker Calibrated</span>
+  </span>`;
+  wrapper.appendChild(footer);
 }
 
 // --- Placeholder ---

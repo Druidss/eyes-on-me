@@ -12,6 +12,7 @@ import { BackendReporter } from "../telemetry/BackendReporter.js";
 import { ConversationStepController } from "./ConversationStepController.js";
 import { getRoundForStep } from "./assignment.js";
 import {
+  renderHeroStep,
   renderInfoStep,
   renderConsentStep,
   renderFormStep,
@@ -163,6 +164,9 @@ export class StudyFlow {
     });
 
     switch (step.type) {
+      case "hero":
+        renderHeroStep(wrapper, step, callbacks);
+        break;
       case "info":
         renderInfoStep(wrapper, step, callbacks);
         break;
@@ -216,6 +220,9 @@ export class StudyFlow {
   }
 
   private renderConversation(wrapper: HTMLElement, step: FlowStep): void {
+    if (!this._selectedAvatar && this.config.avatars.avatars.length > 0) {
+      this._selectedAvatar = this.config.avatars.avatars[0];
+    }
     const resolvedCondition = this.resolveCondition(step);
     this.conversationController = new ConversationStepController({
       config: this.config,
@@ -232,7 +239,10 @@ export class StudyFlow {
     btn.type = "button";
     btn.className = "study-btn";
     btn.textContent = label ?? "Continue";
-    btn.addEventListener("click", () => this.advance());
+    btn.addEventListener("click", () => {
+      btn.disabled = true;
+      this.advance();
+    });
     return btn;
   }
 

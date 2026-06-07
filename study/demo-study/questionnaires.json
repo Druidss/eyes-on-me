@@ -51,23 +51,141 @@
         }
       ]
     },
-    "comparison": {
-      "title": "Comparison",
-      "instruction": "You have now completed both rounds.\nPlease compare the two versions of the avatar.",
+    "debriefing": {
+      "title": "Recall Report",
+      "instruction": "Before HQ closes the file, confirm what you saw and heard. Answer from memory — the record is graded on accuracy.",
       "items": [
         {
-          "id": "naturality",
-          "text": "Which version felt more natural?",
+          "id": "a1",
+          "text": "Which specific date was circled on the wall calendar?",
           "type": "choice",
-          "options": ["Round 1", "Round 2", "Both identical"],
-          "required": true
+          "options": ["The 7th", "The 14th", "The 21st", "The 28th"],
+          "answer": 1,
+          "required": true,
+          "section_key": "A",
+          "section_title": "Visual Memory",
+          "section_note": "Recall what you observed at the scene."
         },
         {
-          "id": "future_choice",
-          "text": "Which version would you prefer to use in the future?",
+          "id": "a2",
+          "text": "What item was the missing dockworker Nikolai Vance last seen carrying?",
           "type": "choice",
-          "options": ["Round 1", "Round 2", "Both identical"],
-          "required": true
+          "options": ["A black briefcase", "A leather bag", "A brown backpack", "A metal suitcase"],
+          "answer": 1,
+          "required": true,
+          "section_key": "A"
+        },
+        {
+          "id": "a3",
+          "text": "What color was the stolen keycard mentioned in the newspaper article?",
+          "type": "choice",
+          "options": ["Red", "Green", "Blue", "Yellow"],
+          "answer": 2,
+          "required": true,
+          "section_key": "A"
+        },
+        {
+          "id": "a4",
+          "text": "Where was the red X marked on the wall map?",
+          "type": "choice",
+          "options": ["Harbor Warehouse No. 5", "Old Embankment No. 12", "Industrial Park No. 8", "South of Train Station"],
+          "answer": 1,
+          "required": true,
+          "section_key": "A"
+        },
+        {
+          "id": "a5",
+          "text": "What is the case file number on the desk folder?",
+          "type": "choice",
+          "options": ["#A7-12", "#B3-08", "#C5-15", "#D9-20"],
+          "answer": 0,
+          "required": true,
+          "section_key": "A"
+        },
+        {
+          "id": "a6",
+          "text": "What phone extension was scribbled on the desk notepad?",
+          "type": "choice",
+          "options": ["Ext. 301", "Ext. 402", "Ext. 504", "Ext. 607"],
+          "answer": 1,
+          "required": true,
+          "section_key": "A"
+        },
+        {
+          "id": "b1",
+          "text": "What is the official codename of the Ministry's upcoming military operation?",
+          "type": "choice",
+          "options": ["Operation Midnight", "Operation Aurora", "Operation Silence", "Operation Storm"],
+          "answer": 1,
+          "required": true,
+          "section_key": "B",
+          "section_title": "Auditory Memory",
+          "section_note": "Recall what was said during the interrogation."
+        },
+        {
+          "id": "b2",
+          "text": "What is the name of the cargo vessel the rebels are using?",
+          "type": "choice",
+          "options": ["The Neptune", "The Hermes", "The Poseidon", "The Artemis"],
+          "answer": 1,
+          "required": true,
+          "section_key": "B"
+        },
+        {
+          "id": "b3",
+          "text": "At what specific time is the Ministry planning to initiate the raid?",
+          "type": "choice",
+          "options": ["01:00 AM", "02:30 AM", "03:00 AM", "04:15 AM"],
+          "answer": 2,
+          "required": true,
+          "section_key": "B"
+        },
+        {
+          "id": "b4",
+          "text": "Who did Director Vane identify as the rogue contact inside the Ministry?",
+          "type": "choice",
+          "options": ["Michael", "Thomas", "James", "Richard"],
+          "answer": 1,
+          "required": true,
+          "section_key": "B"
+        },
+        {
+          "id": "b5",
+          "text": "What emergency radio frequency or channel did Director Vane mention?",
+          "type": "choice",
+          "options": ["Channel 8", "Channel 12", "Channel 16", "Channel 22"],
+          "answer": 2,
+          "required": true,
+          "section_key": "B"
+        },
+        {
+          "id": "b6",
+          "text": "What is the secret verbal password for the field agents?",
+          "type": "choice",
+          "options": ["Blue Moon", "Red Sky", "Green Light", "Black Wind"],
+          "answer": 1,
+          "required": true,
+          "section_key": "B"
+        },
+        {
+          "id": "c1",
+          "text": "What security clearance level does an agent need to transmit on the emergency radio channel?",
+          "type": "choice",
+          "options": ["Level 2", "Level 3", "Level 4", "Level 5"],
+          "answer": 2,
+          "required": true,
+          "section_key": "C",
+          "section_title": "Transfer & Deduction",
+          "section_note": "Connect the visual evidence with what you heard."
+        },
+        {
+          "id": "c2",
+          "text": "What item did Nikolai Vance carry that is required to unlock the main gate at the Old Embankment?",
+          "type": "choice",
+          "options": ["Red security card", "Blue keycard", "Metal key bundle", "Electronic access device"],
+          "answer": 1,
+          "required": true,
+          "section_key": "C"
         }
       ]
     },

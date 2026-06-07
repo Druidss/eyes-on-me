@@ -5,6 +5,7 @@ import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -75,19 +76,24 @@ def _stop_tobii_stream() -> None:
 async def lifespan(application: FastAPI):  # noqa: ARG001
     # --- startup ---
     if settings.tobii_enabled:
-        _start_tobii_stream()
+        from app.adapters import tobii_pro
 
-        from app.adapters import tobii
-
-        started = tobii.start(
-            settings.tobii_zmq_endpoint,
-            settings.tobii_screen_width,
-            settings.tobii_screen_height,
-        )
-        if started:
-            logger.info("Tobii adapter started (endpoint=%s)", settings.tobii_zmq_endpoint)
+        if tobii_pro.start():
+            logger.info("Tobii Pro adapter started.")
         else:
-            logger.warning("Tobii enabled in config but adapter failed to start.")
+            # Fall back to TobiiStream.exe + ZMQ adapter
+            _start_tobii_stream()
+            from app.adapters import tobii
+
+            started = tobii.start(
+                settings.tobii_zmq_endpoint,
+                settings.tobii_screen_width,
+                settings.tobii_screen_height,
+            )
+            if started:
+                logger.info("Tobii ZMQ adapter started (endpoint=%s)", settings.tobii_zmq_endpoint)
+            else:
+                logger.warning("Tobii enabled but no adapter could start.")
     else:
         logger.info("Tobii disabled — running without eye-tracking.")
 
@@ -95,8 +101,9 @@ async def lifespan(application: FastAPI):  # noqa: ARG001
 
     # --- shutdown ---
     if settings.tobii_enabled:
-        from app.adapters import tobii
+        from app.adapters import tobii_pro, tobii
 
+        tobii_pro.stop()
         tobii.stop()
     _stop_tobii_stream()
 

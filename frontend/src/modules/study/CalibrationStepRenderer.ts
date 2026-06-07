@@ -305,6 +305,6 @@ export function renderCalibrationStep(
       cancelAnimationFrame(animId);
       animId = null;
     }
-    gazeProvider.stop();
+    gazeProvider?.stop();
   };
 }
