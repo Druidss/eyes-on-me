@@ -239,7 +239,10 @@ export class StudyFlow {
     btn.type = "button";
     btn.className = "study-btn";
     btn.textContent = label ?? "Continue";
-    btn.addEventListener("click", () => this.advance());
+    btn.addEventListener("click", () => {
+      btn.disabled = true;
+      this.advance();
+    });
     return btn;
   }
 
