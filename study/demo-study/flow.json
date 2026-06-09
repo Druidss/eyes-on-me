@@ -17,7 +17,8 @@
     {
       "id": "condition1",
       "type": "conversation",
-      "condition": "baseline"
+      "condition": "baseline",
+      "bg_image": "assets/bg_game.png"
     },
     {
       "id": "questionnaire1",

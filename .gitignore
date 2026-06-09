@@ -31,6 +31,7 @@ backend/test-results/
 # Allow the two official demo avatars (VRoid Hub samples, see docs/THIRD_PARTY_ASSETS.md)
 !frontend/public/avatars/AvatarSample_B.vrm
 !frontend/public/avatars/AvatarSample_C.vrm
+!frontend/public/avatars/Officer.vrm
 
 # === Release build artifacts ===
 release/

@@ -1,18 +1,10 @@
 {
   "avatars": [
     {
-      "id": "avatar_b",
-      "label": "Female Avatar",
-      "model_file": "AvatarSample_B.vrm",
-      "voice": "alloy",
-      "thumbnail": "avatars/avatar_b_thumb.png"
-    },
-    {
-      "id": "avatar_c",
-      "label": "Male Avatar",
-      "model_file": "AvatarSample_C.vrm",
-      "voice": "echo",
-      "thumbnail": "avatars/avatar_c_thumb.png"
+      "id": "officer",
+      "label": "Officer",
+      "model_file": "Officer.vrm",
+      "voice": "echo"
     }
   ]
 }

@@ -11,7 +11,6 @@ import { createAppSession } from "./session.js";
 import { isDemoMode, demoRuntime, fetchDemoStudyConfig } from "./demoMode.js";
 import { fetchStudyConfig, StudyFlow } from "../modules/study/StudyFlow.js";
 import { generateLocalAssignment, fetchAssignment } from "../modules/study/assignment.js";
-import { showExperimentStartScreen } from "../modules/study/ExperimentStartScreen.js";
 
 const STUDY_ID = "demo-study";
 
@@ -51,10 +50,8 @@ export async function bootstrap(): Promise<void> {
     return;
   }
 
-  // --- Experimenter start screen (skip in demo mode) ---
-  const metadata = demoMode
-    ? { participant_id: `demo-${Date.now()}` }
-    : await showExperimentStartScreen(app, config, runtime);
+  // Auto-generate session metadata — no login screen
+  const metadata = { participant_id: `session-${Date.now()}` };
 
   // --- Session ---
   let sessionId: string;

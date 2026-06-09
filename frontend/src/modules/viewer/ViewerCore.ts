@@ -137,6 +137,22 @@ export class ViewerCore {
     this.runtime?.clearEmote();
   }
 
+  /** Load an image as the Three.js scene background. */
+  setBackground(url: string): Promise<void> {
+    return new Promise((resolve, reject) => {
+      new THREE.TextureLoader().load(
+        url,
+        (texture) => {
+          texture.colorSpace = THREE.SRGBColorSpace;
+          this.scene.background = texture;
+          resolve();
+        },
+        undefined,
+        reject,
+      );
+    });
+  }
+
   /** Connect a WebRTC MediaStream for lip sync. No-op without avatar. */
   attachLipSyncStream(stream: MediaStream): void {
     this.runtime?.attachLipSyncStream(stream);
