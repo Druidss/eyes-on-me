@@ -17,9 +17,9 @@ export interface SuspicionMetricOptions {
   minValue?: number;
   maxValue?: number;
   evidenceDwellGainPerSecond?: number;
+  backgroundDwellGainPerSecond?: number;
   evidenceFixationGain?: number;
   officerFaceDecayPerSecond?: number;
-  backgroundDecayPerSecond?: number;
   thresholds?: Partial<SuspicionThresholds>;
 }
 
@@ -41,9 +41,9 @@ export class SuspicionMetric {
   private readonly minValue: number;
   private readonly maxValue: number;
   private readonly evidenceDwellGainPerSecond: number;
+  private readonly backgroundDwellGainPerSecond: number;
   private readonly evidenceFixationGain: number;
   private readonly officerFaceDecayPerSecond: number;
-  private readonly backgroundDecayPerSecond: number;
   private readonly thresholds: SuspicionThresholds;
 
   private value: number;
@@ -55,9 +55,9 @@ export class SuspicionMetric {
     this.minValue = options.minValue ?? 0;
     this.maxValue = options.maxValue ?? 100;
     this.evidenceDwellGainPerSecond = options.evidenceDwellGainPerSecond ?? 18;
+    this.backgroundDwellGainPerSecond = options.backgroundDwellGainPerSecond ?? 5;
     this.evidenceFixationGain = options.evidenceFixationGain ?? 8;
     this.officerFaceDecayPerSecond = options.officerFaceDecayPerSecond ?? 10;
-    this.backgroundDecayPerSecond = options.backgroundDecayPerSecond ?? 4;
     this.thresholds = {
       ...DEFAULT_THRESHOLDS,
       ...options.thresholds,
@@ -101,7 +101,7 @@ export class SuspicionMetric {
     } else if (zone.kind === "officer_face") {
       nextValue -= (dtMs / 1000) * this.officerFaceDecayPerSecond;
     } else {
-      nextValue -= (dtMs / 1000) * this.backgroundDecayPerSecond;
+      nextValue += (dtMs / 2500) * this.backgroundDwellGainPerSecond * multiplier;
     }
 
     nextValue = this.clamp(nextValue);

@@ -160,7 +160,7 @@ export class DemoControllerP1 {
       zoneEl.style.border = `2px solid ${colorForZoneKind(zone.kind)}`;
       zoneEl.style.background = "rgba(34, 197, 94, 0.12)";
       zoneEl.style.borderRadius = "8px";
-      zoneEl.style.backdropFilter = "blur(1px)";
+      //zoneEl.style.backdropFilter = "blur(1px)";
 
       const label = document.createElement("div");
       label.textContent = zone.label;
