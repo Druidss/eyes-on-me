@@ -203,11 +203,14 @@ export class ConversationStepController {
 
     // Initialize viewer after DOM attachment
     const condition = this.condition;
+    const bgUrl = step.bg_image
+      ? `${import.meta.env.BASE_URL}${step.bg_image}`
+      : undefined;
     requestAnimationFrame(() => {
       this.initViewer(
         canvas, status, viewerContainer,
         dot, debugLabel, fsmLabel, mgLabel, eyeLabel,
-        condition, selectedAvatar,
+        condition, selectedAvatar, bgUrl,
       );
     });
   }
@@ -260,12 +263,19 @@ export class ConversationStepController {
     eyeLabel: HTMLElement,
     condition: string | undefined,
     selectedAvatar: Avatar | null,
+    bgUrl?: string,
   ): void {
     // Guard: render() may have already moved to a different step
     if (!canvas.isConnected) return;
 
     this.viewer = new ViewerCore();
     this.viewer.setup(canvas);
+
+    if (bgUrl) {
+      this.viewer.setBackground(bgUrl).catch(() => {
+        console.warn("[viewer] Background load failed:", bgUrl);
+      });
+    }
 
     if (!selectedAvatar) {
       status.textContent = "No avatar selected.";
