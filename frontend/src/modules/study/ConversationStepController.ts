@@ -17,7 +17,7 @@ import type { BackendReporter } from "../telemetry/BackendReporter.js";
 import type { RealtimeClient } from "../realtime/RealtimeClient.js";
 import { renderVoiceBar } from "./renderVoiceBar.js";
 // P1 overlay controller for zone visualization during development
-import { DemoControllerP1 } from "../spy/DemoControllerP1.js";
+import { GazeController } from "../spy/GazeController.js";
 // P1 zone-tracking logic, driven by the original gaze provider pipeline
 import { GazeZoneTracker } from "../spy/GazeZoneTracker.js";
 // P1 suspicion metric
@@ -40,7 +40,7 @@ export class ConversationStepController {
   private remoteStream: MediaStream | null = null;
   private lipSyncAttached = false;
   // P1 demo overlay instance
-  private p1DemoController: DemoControllerP1 | null = null;
+  private p1GazeController: GazeController | null = null;
   // P1 zone-tracking logic instance for zone, dwell, and fixation state.
   private p1ZoneTracker: GazeZoneTracker | null = null;
   // P1 suspicion-metric instance
@@ -132,12 +132,12 @@ export class ConversationStepController {
     // when ?p1demo is present, keep the normal study conversation scene
     // but attach the P1 zone overlay on top of the existing viewer container.
     if (new URLSearchParams(window.location.search).has("p1demo")) {
-      this.p1DemoController = new DemoControllerP1();
+      this.p1GazeController = new GazeController();
       this.p1ZoneTracker = new GazeZoneTracker();
       // P1 suspicion 
       this.p1SuspicionMetric = new SuspicionMetric();
-      this.p1DemoController.attachToScene(viewerContainer, {
-        title: "P1 Demo Controller",
+      this.p1GazeController.attachToScene(viewerContainer, {
+        title: "P1 Gaze Controller",
         showOverlay: true,
       });
     }
@@ -227,8 +227,8 @@ export class ConversationStepController {
 
     // P1 temporary integration cleanup:
     // remove the development-only overlay when leaving the conversation step.
-    this.p1DemoController?.destroy();
-    this.p1DemoController = null;
+    this.p1GazeController?.destroy();
+    this.p1GazeController = null;
     this.p1ZoneTracker = null;
     this.p1SuspicionMetric = null;
     //_________________________________________________________________
@@ -502,7 +502,7 @@ export class ConversationStepController {
           })
         : null;
       if (p1Snapshot) {
-        this.p1DemoController?.updateDebugSnapshot({
+        this.p1GazeController?.updateDebugSnapshot({
           activeZone: p1Snapshot.active_zone,
           dwellMs: p1Snapshot.active_zone.dwell_ms,
           fixationCount: p1Snapshot.fixation.total_count,
