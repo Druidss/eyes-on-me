@@ -4,7 +4,7 @@
       "states": ["baseline", "gazeaware_pending", "gazeaware", "gaze_break"],
       "pending_time_ms": 300,
       "mutual_time_ms": 3600,
-      "break_time_ms": 1250,
+      "break_time_ms": 3000,
       "lose_debounce_ms": 200
     }
   }

@@ -1,4 +1,5 @@
 import { BACKGROUND_ZONE, GAZE_ZONES } from "./gazeZones.js";
+import type { GazeState } from "../gaze/GazeAwarenessMachine.js";
 import type {
   ActiveSpyZone,
   RectGazeZone,
@@ -87,8 +88,10 @@ export class GazeController {
       "Dwell: -",
       "Fixations: -",
       "Per-zone: -",
+      "Eye-contact: -",
       "Suspicion: -",
       "Rapport: -",
+      "Rapport x Suspicion: -",
     ]);
   }
 
@@ -126,10 +129,12 @@ export class GazeController {
     dwellMs?: number;
     fixationCount?: number;
     perZoneCounts?: Partial<Record<SpyZoneId, number>>;
+    eyeContactState?: GazeState | string;
     suspicionValue?: number;
     suspicionState?: string;
     rapportValue?: number;
     rapportBand?: string;
+    rapportSuspicionMultiplier?: number;
   }): void {
     const activeZone = snapshot.activeZone;
     if (activeZone) {
@@ -140,6 +145,7 @@ export class GazeController {
     const dwellText = snapshot.dwellMs !== undefined ? `${Math.round(snapshot.dwellMs)} ms` : "-";
     const fixationsText = snapshot.fixationCount !== undefined ? String(snapshot.fixationCount) : "-";
     const perZoneText = formatPerZoneCounts(snapshot.perZoneCounts, this.zones);
+    const eyeContactText = snapshot.eyeContactState ?? "-";
     const suspicionText =
       snapshot.suspicionValue !== undefined
         ? `${snapshot.suspicionValue.toFixed(1)}${snapshot.suspicionState ? ` (${snapshot.suspicionState})` : ""}`
@@ -147,6 +153,10 @@ export class GazeController {
     const rapportText =
       snapshot.rapportValue !== undefined
         ? `${snapshot.rapportValue.toFixed(1)}${snapshot.rapportBand ? ` (${snapshot.rapportBand})` : ""}`
+        : "-";
+    const rapportMultiplierText =
+      snapshot.rapportSuspicionMultiplier !== undefined
+        ? `${snapshot.rapportSuspicionMultiplier.toFixed(2)}x`
         : "-";
 
     this.setSuspicionVignette(
@@ -159,8 +169,10 @@ export class GazeController {
       `Dwell: ${dwellText}`,
       `Fixations: ${fixationsText}`,
       `Per-zone: ${perZoneText}`,
+      `Eye-contact: ${eyeContactText}`,
       `Suspicion: ${suspicionText}`,
       `Rapport: ${rapportText}`,
+      `Rapport x Suspicion: ${rapportMultiplierText}`,
     ]);
   }
 

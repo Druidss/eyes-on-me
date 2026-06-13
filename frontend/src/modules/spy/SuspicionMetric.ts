@@ -57,7 +57,7 @@ export class SuspicionMetric {
     this.evidenceDwellGainPerSecond = options.evidenceDwellGainPerSecond ?? 18;
     this.backgroundDwellGainPerSecond = options.backgroundDwellGainPerSecond ?? 5;
     this.evidenceFixationGain = options.evidenceFixationGain ?? 8;
-    this.officerFaceDecayPerSecond = options.officerFaceDecayPerSecond ?? 10;
+    this.officerFaceDecayPerSecond = options.officerFaceDecayPerSecond ?? 7;
     this.thresholds = {
       ...DEFAULT_THRESHOLDS,
       ...options.thresholds,
@@ -95,6 +95,7 @@ export class SuspicionMetric {
       const fixationDelta = Math.max(0, currentZoneFixations - processedFixations);
 
       if (fixationDelta > 0) {
+        // suspicion gain on new fixation on same evidence zone
         nextValue += fixationDelta * this.evidenceFixationGain * multiplier;
         this.processedFixationCounts.set(zone.id, currentZoneFixations);
       }

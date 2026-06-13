@@ -22,6 +22,8 @@ import { GazeController } from "../spy/GazeController.js";
 import { GazeZoneTracker } from "../spy/GazeZoneTracker.js";
 // P1 suspicion metric
 import { SuspicionMetric } from "../spy/SuspicionMetric.js";
+// P1 rapport metric
+import { RapportMetric } from "../spy/RapportMetric.js";
 
 /**
  * Manages the conversation step lifecycle: 3D viewer, gaze tracking,
@@ -45,6 +47,8 @@ export class ConversationStepController {
   private p1ZoneTracker: GazeZoneTracker | null = null;
   // P1 suspicion-metric instance
   private p1SuspicionMetric: SuspicionMetric | null = null;
+  // P1 rapport-metric instance
+  private p1RapportMetric: RapportMetric | null = null;
 
   private stepId: string | undefined;
   private condition: string | undefined;
@@ -136,6 +140,8 @@ export class ConversationStepController {
       this.p1ZoneTracker = new GazeZoneTracker();
       // P1 suspicion 
       this.p1SuspicionMetric = new SuspicionMetric();
+      // P1 rapport
+      this.p1RapportMetric = new RapportMetric();
       this.p1GazeController.attachToScene(viewerContainer, {
         title: "P1 Gaze Controller",
         showOverlay: true,
@@ -231,6 +237,7 @@ export class ConversationStepController {
     this.p1GazeController = null;
     this.p1ZoneTracker = null;
     this.p1SuspicionMetric = null;
+    this.p1RapportMetric = null;
     //_________________________________________________________________
 
     if (this.gazeLoopId !== null) {
@@ -391,6 +398,7 @@ export class ConversationStepController {
 
     const sourceLabel = this.gazeProviderType === "backend" ? "backend" : "mouse";
     debugLabel.textContent = `User Gaze: ${sourceLabel}`;
+    const p1DemoEnabled = new URLSearchParams(window.location.search).has("p1demo");
 
     // Live gaze cursor overlay
     const gazeCursor = document.createElement("div");
@@ -398,12 +406,13 @@ export class ConversationStepController {
     container.appendChild(gazeCursor);
 
     // Only create FSM for gazeaware conditions
-    if (condition === "gazeaware") {
+    if (condition === "gazeaware" || p1DemoEnabled) {
       const profile = this.config.gaze_profiles.profiles["default"];
       if (profile) {
         this.gazeFSM = new GazeAwarenessMachine(profile);
       }
     }
+    //_____________________________________________________________
 
     let prevHit: boolean | null = null;
     let prevFsmState: string | null = null;
@@ -493,24 +502,8 @@ export class ConversationStepController {
 
       // P1: Zone-tracking integration
       // feed the original kit's gaze provider output + face-hit result into
-      // the P1 tracker, then push the live snapshot into the P1 overlay HUD.
+      // the P1 tracker, then use the live snapshot in the P1 gameplay metrics.
       const p1Snapshot = this.p1ZoneTracker?.update(gaze, now, isHit);
-      const p1SuspicionSnapshot = p1Snapshot
-        ? this.p1SuspicionMetric?.update({
-            zoneSnapshot: p1Snapshot,
-            nowMs: now,
-          })
-        : null;
-      if (p1Snapshot) {
-        this.p1GazeController?.updateDebugSnapshot({
-          activeZone: p1Snapshot.active_zone,
-          dwellMs: p1Snapshot.active_zone.dwell_ms,
-          fixationCount: p1Snapshot.fixation.total_count,
-          perZoneCounts: p1Snapshot.fixation.per_zone_counts,
-          suspicionValue: p1SuspicionSnapshot?.value,
-          suspicionState: p1SuspicionSnapshot?.state,
-        });
-      }
       //______________________________________________________________________
 
       // Gaze cursor intersection feedback
@@ -598,6 +591,40 @@ export class ConversationStepController {
       const eyePitch = this.lookAtSmoother?.appliedPitch ?? 0;
       const avatarEyeContact = mgTracker.isAvatarEyeContact(eyeYaw, eyePitch);
       const mutualGaze = mgTracker.isMutualGaze(avatarEyeContact, isHit);
+
+      // P1: Rapport/suspicion metric integration
+      // derive rapport from the original eye-contact signals first, then let
+      // suspicion consume the rapport multiplier before rendering both metrics.
+      const p1RapportSnapshot = this.p1RapportMetric?.update({
+        nowMs: now,
+        gazeState: this.gazeFSM?.state ?? "baseline",
+        mutualGaze,
+        avatarEyeContact,
+        userFaceIntersection: isHit,
+        activeZone: p1Snapshot?.active_zone ?? null,
+      });
+      const p1SuspicionSnapshot = p1Snapshot
+        ? this.p1SuspicionMetric?.update({
+            zoneSnapshot: p1Snapshot,
+            nowMs: now,
+            suspicionMultiplier: p1RapportSnapshot?.suspicion_multiplier,
+          })
+        : null;
+      if (p1Snapshot) {
+        this.p1GazeController?.updateDebugSnapshot({
+          activeZone: p1Snapshot.active_zone,
+          dwellMs: p1Snapshot.active_zone.dwell_ms,
+          fixationCount: p1Snapshot.fixation.total_count,
+          perZoneCounts: p1Snapshot.fixation.per_zone_counts,
+          eyeContactState: this.gazeFSM?.state ?? "baseline",
+          suspicionValue: p1SuspicionSnapshot?.value,
+          suspicionState: p1SuspicionSnapshot?.state,
+          rapportValue: p1RapportSnapshot?.value,
+          rapportBand: p1RapportSnapshot?.band,
+          rapportSuspicionMultiplier: p1RapportSnapshot?.suspicion_multiplier,
+        });
+      }
+      //________________________________________________________________
 
       // Debug labels
       mgLabel.textContent = mutualGaze
