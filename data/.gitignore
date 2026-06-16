@@ -6,3 +6,5 @@
 !sample/**
 !audiofiles_script/
 !audiofiles_script/**
+!background/
+!background/**
