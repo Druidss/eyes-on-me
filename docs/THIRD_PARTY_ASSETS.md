@@ -140,6 +140,20 @@ josephrocca/ChatVRM-js) carried it forward under the same terms.
 `IdleMotionController` retains a procedural arm rest pose fallback
 (lowering arms from T-pose) but no longer provides body idle motion.
 
+### look_around.vrma, thinking.vrma, relax.vrma, angry.vrma, sleepy.vrma
+
+| Item | Value |
+| ---- | ----- |
+| Files | `frontend/public/animations/{look_around,thinking,relax,angry,sleepy}.vrma` |
+| Format | VRMC_vrm_animation glTF binary (.vrma) |
+| Size | ~118 KB each |
+| Source | [tk256ailab/vrm-viewer](https://github.com/tk256ailab/vrm-viewer) |
+| Path in Source | `/VRMA/` directory on `main` branch |
+| License | MIT / Open-Source (tk256ailab/vrm-viewer) |
+
+These animations provide specialized head and body movements (such as looking down, studying maps, showing irritation, or resting) mapped to script stages in SCRIPT.md.
+
+
 ## Fonts
 
 ### IBM Plex Sans
