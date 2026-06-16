@@ -30,7 +30,7 @@
 
 ### Section C: Transfer & Deduction (2 Questions)
 13. **What security clearance level does an agent need to transmit on the emergency radio channel?**  
-    *Logical connection:* The desk folder (Visual Clue 5) displays "Level 4 Clearance". In the second low suspicion branch (VANE_07.1), Vane mentions that only agents cleared for Case #A7-12 are allowed to use the emergency radio channel.  
+    *Logical connection:* The desk folder (Visual Clue 5) displays "Level 4 Clearance". In the second low suspicion branch (VANE_08.1), Vane mentions that only agents cleared for Case #A7-12 are allowed to use the emergency radio channel.  
     *Answer: Level 4*
 14. **What item did Nikolai Vance carry that is required to unlock the main gate at the Old Embankment?**  
     *Logical connection:* The newspaper (Visual Clue 3) mentions Vance's leather bag contained a "blue keycard". Vane mentions in the dialogue that the team needs the keycard Vance stole to unlock the main gate.  

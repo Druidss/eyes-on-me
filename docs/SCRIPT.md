@@ -28,7 +28,7 @@
 
 ---
 
-### [0:50 - 1:45] Part II: The Details
+### [0:50 - 2:00] Part II: The Details
 *(Vane leans forward slightly, continuing the briefing.)*
 
 **VANE_05** *(Audio Clues 3 & 4)*:  
@@ -41,42 +41,47 @@
 
 > **[Opportunity 2 - Safe Window]:** The NPC's head is turned to his right. Player can safely scan the room again without increasing suspicion.
 
+*(Vane mutters to himself while studying the map. The player can safely scan the room during this dialogue.)*
+
+**VANE_07:**  
+"The docks at sector four are heavily guarded, but the northern channels... they are completely exposed. If they reach open water, we lose them."
+
 *(Vane turns back to face the player. The system checks the second Suspicion metric.)*
 
 #### Branch 2A: Low Suspicion (Player maintained appropriate eye contact)
-**VANE_07.1** *(Audio Clue 5)*:  
+**VANE_08.1** *(Audio Clue 5)*:  
 "Since I can trust you, keep this backup frequency in mind. If our primary comms go dark, and only if you have clearance for Case #A7-12, tune your radio to **Channel 16**."
 
 #### Branch 2B: High Suspicion (Player scanned the room too much)
-**VANE_07.2:**  
+**VANE_08.2:**  
 "If our primary comms go dark, we will rely on standard localized patrols. I was going to share the emergency backup frequencies with you, but you seem too distracted today to handle sensitive intelligence. Let's stick to the basic protocols."
 
 ---
 
-### [1:45 - 2:35] Part III: The Telephone Call
+### [2:00 - 3:00] Part III: The Telephone Call
 *(The retro desk phone rings. Vane picks up the receiver, turning his head slightly away.)*
 
 **VANE_08:**  
 "Hold that thought, Miller."
 
-**VANE_09:**  
-"Yes?... No, I am in a briefing. Ensure the perimeter guards at the old embankment are reinforced. I will call you back on the secure line."
+**VANE_10:**  
+"Yes?... No, I am in a briefing... What? The perimeter guards at the old embankment are complaining about the cold? Tell them to stay alert, the Vanguard is active tonight. Understood, reinforce the guards at sector seven as well. I don't want any surprises... No, I will call you back on the secure line in five minutes. Just get it done."
 
 > **[Opportunity 3 - Safe Window]:** The NPC is holding the phone/looking slightly away. The player has a final safe chance to scan the room.
 
 ---
 
-### [2:35 - 3:00] Part IV: Outros & Endings
+### [3:00+] Part IV: Outros & Endings
 *(Vane hangs up the phone and looks back at the player. The final ending is triggered based on overall Suspicion at the 3-minute mark.)*
 
 #### Ending A: Successful Departure (Suspicion is LOW)
-**VANE_10.1** *(Audio Clue 6)*:  
+**VANE_11.1** *(Audio Clue 6)*:  
 "That was headquarters. The wheels are in motion. If you do need to use that backup frequency we discussed, the secret verbal password is **Red Sky** to verify your identity. Go back to your desk and prepare your report, Agent Miller. Let us hope, for your sake, that our operation goes flawlessly. You are dismissed."
 
 *(Fade to black. Transition to the Questionnaire screen: "You successfully gathered intelligence. Let's see what you discovered...")*
 
 #### Ending B: Arrested (Suspicion is HIGH)
-**VANE_10.2:**  
+**VANE_11.2:**  
 "Actually, Miller... I cannot let you leave this office. Your nervous behavior today confirms my worst fears. You've been staring at my map and my files since you walked in. Guards! Detain Agent Miller immediately!"
 
 *(Sound of a door slamming open and heavy footsteps. Fade to black. Transition to the Questionnaire screen: "You were captured! But can you still transmit the gathered intelligence to your contacts?")*
