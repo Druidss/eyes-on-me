@@ -6,8 +6,8 @@
 **VANE_1:**  
 "Sit down, Agent Miller. I’ve been reviewing our internal security protocols. These are tense times in Veloria. Treason is like a disease... silent, until it’s too late. But I’m sure you agree."
 
-**VANE_2:**  
-"We are launching a decisive strike to crush the rebels. This campaign is officially designated as **Operation Aurora** *(Audio Clue 1)*. It must succeed."
+**VANE_2** *(Audio Clue 1)*:  
+"We are launching a decisive strike to crush the rebels. This campaign is officially designated as **Operation Aurora**. It must succeed."
 
 *(Vane looks down. He is no longer looking at the player.)*
 
@@ -19,8 +19,8 @@
 *(Vane signs the papers, then looks back up, checking the player's behavior. The system checks the first Suspicion metric.)*
 
 #### Branch 1A: Low Suspicion (Player did not look around suspiciously)
-**VANE_3.1:**  
-"I’m sharing this setup with you because I need absolute discretion. We have a suspected mole in our communications division. We believe a corrupt officer named **Thomas** *(Audio Clue 2)* is feeding data to the rebels. Keep your eyes open."
+**VANE_3.1** *(Audio Clue 2)*:  
+"I’m sharing this setup with you because I need absolute discretion. We have a suspected mole in our communications division. We believe a corrupt officer named **Thomas** is feeding data to the rebels. Keep your eyes open."
 
 #### Branch 1B: High Suspicion (Player scanned the room too much)
 **VANE_3.2:**  
@@ -29,9 +29,10 @@
 ---
 
 ### [0:50 - 1:45] Part II: The Details
+*(Vane leans forward slightly, continuing the briefing.)*
 
-**VANE_4:**  
-"Our intelligence confirms the Vanguard has acquired weaponized cargo. They have loaded it onto a civilian freighter named **The Hermes** *(Audio Clue 3)*. They think they can slip out under the cover of darkness. They are wrong. We raid the harbor at exactly **03:00 AM** *(Audio Clue 4)*."
+**VANE_4** *(Audio Clues 3 & 4)*:  
+"Our intelligence confirms the Vanguard has acquired weaponized cargo. They have loaded it onto a civilian freighter named **The Hermes**. They think they can slip out under the cover of darkness. They are wrong. We raid the harbor at exactly **03:00 AM**."
 
 *(Vane sighs, turning his head completely to look at the massive wall map on his right.)*
 
@@ -43,8 +44,8 @@
 *(Vane turns back to face the player. The system checks the second Suspicion metric.)*
 
 #### Branch 2A: Low Suspicion (Player maintained appropriate eye contact)
-**VANE_5.1:**  
-"Since I can trust you, keep this backup frequency in mind. If our primary comms go dark, and only if you have clearance for Case #A7-12, tune your radio to **Channel 16** *(Audio Clue 5)*."
+**VANE_5.1** *(Audio Clue 5)*:  
+"Since I can trust you, keep this backup frequency in mind. If our primary comms go dark, and only if you have clearance for Case #A7-12, tune your radio to **Channel 16**."
 
 #### Branch 2B: High Suspicion (Player scanned the room too much)
 **VANE_5.2:**  
@@ -69,8 +70,8 @@
 *(Vane hangs up the phone and looks back at the player. The final ending is triggered based on overall Suspicion at the 3-minute mark.)*
 
 #### Ending A: Successful Departure (Suspicion is LOW)
-**VANE_7.1:**  
-"That was headquarters. The wheels are in motion. If you do need to use that backup frequency we discussed, the secret verbal password is **Red Sky** *(Audio Clue 6)* to verify your identity. Go back to your desk and prepare your report, Agent Miller. Let us hope, for your sake, that our operation goes flawlessly. You are dismissed."
+**VANE_7.1** *(Audio Clue 6)*:  
+"That was headquarters. The wheels are in motion. If you do need to use that backup frequency we discussed, the secret verbal password is **Red Sky** to verify your identity. Go back to your desk and prepare your report, Agent Miller. Let us hope, for your sake, that our operation goes flawlessly. You are dismissed."
 
 *(Fade to black. Transition to the Questionnaire screen: "You successfully gathered intelligence. Let's see what you discovered...")*
 
