@@ -4,3 +4,5 @@
 !.gitignore
 !sample/
 !sample/**
+!audiofiles_script/
+!audiofiles_script/**
