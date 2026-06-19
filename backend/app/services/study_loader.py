@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from app.schemas.study import (
     Avatars,
+    DialogueScripts,
     Flow,
     GazeProfiles,
     Prompts,
@@ -21,7 +22,7 @@ from app.settings import settings
 
 logger = logging.getLogger(__name__)
 
-# Maps each config fragment to its file name and schema.
+# Maps each required config fragment to its file name and schema.
 _FRAGMENTS: list[tuple[str, str, type]] = [
     ("meta", "study.json", StudyMeta),
     ("flow", "flow.json", Flow),
@@ -30,6 +31,10 @@ _FRAGMENTS: list[tuple[str, str, type]] = [
     ("prompts", "prompts.json", Prompts),
     ("gaze_profiles", "gaze_profiles.json", GazeProfiles),
 ]
+
+# Optional fragment: studies without any dialogue scripts simply omit this
+# file. Unlike _FRAGMENTS, a missing file is not an error.
+_DIALOGUE_SCRIPTS_FILENAME = "dialogue_scripts.json"
 
 
 class StudyLoadError(Exception):
@@ -74,6 +79,24 @@ def validate_study_dir(root: Path) -> StudyConfig:
                 loc = " -> ".join(str(part) for part in err["loc"])
                 errors.append(f"{filename}: {loc}: {err['msg']}")
 
+    # Optional fragment: dialogue_scripts.json. Absent file → empty collection,
+    # not an error — most studies have no branching dialogue scripts.
+    dialogue_filepath = root / _DIALOGUE_SCRIPTS_FILENAME
+    if dialogue_filepath.is_file():
+        try:
+            raw = json.loads(dialogue_filepath.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            errors.append(f"Invalid JSON in {_DIALOGUE_SCRIPTS_FILENAME}: {exc}")
+        else:
+            try:
+                parsed["dialogue_scripts"] = DialogueScripts.model_validate(raw)
+            except ValidationError as exc:
+                for err in exc.errors():
+                    loc = " -> ".join(str(part) for part in err["loc"])
+                    errors.append(f"{_DIALOGUE_SCRIPTS_FILENAME}: {loc}: {err['msg']}")
+    else:
+        parsed["dialogue_scripts"] = DialogueScripts(scripts={})
+
     if errors:
         detail = "; ".join(errors)
         raise StudyLoadError(f"Study '{study_name}' validation failed: {detail}")
@@ -86,6 +109,15 @@ def validate_study_dir(root: Path) -> StudyConfig:
             raise StudyLoadError(
                 f"Study '{study_name}': flow step '{step.id}' references "
                 f"unknown questionnaire '{step.questionnaire_id}'"
+            )
+
+    # Cross-validation: dialogue_script ids referenced in flow must exist.
+    dialogue_scripts: DialogueScripts = parsed["dialogue_scripts"]  # type: ignore[assignment]
+    for step in flow.steps:
+        if step.dialogue_script and step.dialogue_script not in dialogue_scripts.scripts:
+            raise StudyLoadError(
+                f"Study '{study_name}': flow step '{step.id}' references "
+                f"unknown dialogue script '{step.dialogue_script}'"
             )
 
     return StudyConfig(**parsed)

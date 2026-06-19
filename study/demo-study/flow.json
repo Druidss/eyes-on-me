@@ -18,7 +18,8 @@
       "id": "condition1",
       "type": "conversation",
       "condition": "baseline",
-      "bg_image": "assets/bg_game.png"
+      "bg_image": "assets/bg_game.png",
+      "dialogue_script": "vane_interrogation"
     },
     {
       "id": "questionnaire1",

@@ -71,6 +71,88 @@ export interface FormField {
   max?: number;
 }
 
+/**
+ * A single action fired when a TimelineCue triggers.
+ *
+ * `type` is open-ended on purpose: only "play_audio" is implemented
+ * today, but new action types (e.g. "set_expression", "say_line") can
+ * be added without touching this interface's shape contract.
+ */
+export interface TimelineAction {
+  type: string;
+  // play_audio fields
+  src?: string;
+  volume?: number;
+  loop?: boolean;
+}
+
+/**
+ * A single fixed-time trigger within a conversation step.
+ *
+ * `at_seconds` is measured from when the conversation step's timer
+ * starts (avatar ready) — the same clock as `duration_seconds`.
+ */
+export interface TimelineCue {
+  id: string;
+  at_seconds: number;
+  actions: TimelineAction[];
+}
+
+/**
+ * Generic branching dialogue script — sequential audio+subtitle nodes
+ * that advance "when the current line finishes playing" rather than at
+ * fixed wall-clock offsets (unlike TimelineCue). Branch nodes consult
+ * suspicion state at decision points; safe-window nodes temporarily
+ * adjust suspicion gain while a line plays (e.g. NPC looking away).
+ *
+ * Designed to be script-agnostic: swapping in a different interrogation
+ * (or any other branching voice scene) means authoring a new JSON file
+ * in this shape, not touching DialogueSequencer's code.
+ */
+export type DialogueBranchKey = "low" | "high";
+
+export interface DialogueSafeWindow {
+  /**
+   * Suspicion gain multiplier applied while this node's audio is
+   * playing (e.g. 0 = fully suppress gain during a "safe window" where
+   * the NPC is looking away). Restored to 1 when the node ends.
+   */
+  suspicion_multiplier: number;
+}
+
+export interface DialogueLineNode {
+  id: string;
+  kind: "line";
+  /** Path relative to `frontend/public/`. */
+  audio_src: string;
+  /** Subtitle text shown while this line plays. */
+  text: string;
+  /** Speaker label for the subtitle UI (e.g. "Director Vane"). */
+  speaker?: string;
+  /** Stage direction / scene note shown above the subtitle, if any. */
+  direction?: string;
+  /** Suspicion gain adjustment active for the duration of this line. */
+  safe_window?: DialogueSafeWindow;
+  /** Next node id. Omit on the script's final node. */
+  next?: string;
+}
+
+export interface DialogueBranchNode {
+  id: string;
+  kind: "branch";
+  /** Reads the current low/high suspicion split and follows the matching id. */
+  branch: Record<DialogueBranchKey, string>;
+}
+
+export type DialogueNode = DialogueLineNode | DialogueBranchNode;
+
+export interface DialogueScript {
+  id: string;
+  /** Id of the first node to play when the script starts. */
+  start: string;
+  nodes: DialogueNode[];
+}
+
 export interface FlowStep {
   id: string;
   type:
@@ -93,6 +175,12 @@ export interface FlowStep {
   fields?: FormField[];
   condition?: string;
   questionnaire_id?: string;
+  /** Max duration in seconds for conversation steps. Timer counts up; auto-advances when reached. */
+  duration_seconds?: number;
+  /** Fixed-time triggers within a conversation step (e.g. play_audio cues). */
+  timeline?: TimelineCue[];
+  /** Id of a dialogue script (see study/<id>/dialogue_scripts/) to play during this conversation step. */
+  dialogue_script?: string;
 }
 
 export interface Flow {
@@ -171,6 +259,10 @@ export interface GazeProfiles {
   profiles: Record<string, GazeProfile>;
 }
 
+export interface DialogueScripts {
+  scripts: Record<string, DialogueScript>;
+}
+
 export interface StudyConfig {
   meta: StudyMeta;
   flow: Flow;
@@ -178,6 +270,7 @@ export interface StudyConfig {
   questionnaires: Questionnaires;
   prompts: Prompts;
   gaze_profiles: GazeProfiles;
+  dialogue_scripts: DialogueScripts;
 }
 
 // --- Session metadata (experimenter start screen) ---

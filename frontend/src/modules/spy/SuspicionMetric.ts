@@ -126,6 +126,19 @@ export class SuspicionMetric {
     };
   }
 
+  /**
+   * Binary low/high suspicion split, for callers that need a simple
+   * branch decision (e.g. dialogue branching) rather than the full
+   * 5-level SuspicionState.
+   *
+   * "Low" = relaxed or neutral. "High" = alert, suspicious, or
+   * confrontational. This mirrors the same relaxed/neutral vs.
+   * alert+ boundary used by resolveState()'s thresholds.
+   */
+  isLowSuspicion(): boolean {
+    return this.state === "relaxed" || this.state === "neutral";
+  }
+
   private clamp(value: number): number {
     return Math.min(this.maxValue, Math.max(this.minValue, value));
   }

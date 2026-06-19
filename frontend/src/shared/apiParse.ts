@@ -112,6 +112,14 @@ export function parseStudyConfig(data: unknown): StudyConfig {
     throw new Error("Invalid study config: avatars.avatars must be an array");
   }
 
+  // dialogue_scripts is optional on the wire — most studies have none.
+  // Backend fills an empty collection when dialogue_scripts.json is
+  // absent, but older cached configs or the static demo snapshot may
+  // not have the key at all.
+  if (!isObject(data.dialogue_scripts)) {
+    (data as Record<string, unknown>).dialogue_scripts = { scripts: {} };
+  }
+
   // Assignment policy: fill default when absent, strict when present
   const meta = data.meta;
   if (isObject(meta)) {
