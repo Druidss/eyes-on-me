@@ -41,6 +41,7 @@ export class ConversationStepController {
   private realtimeClient: RealtimeClient | null = null;
   private remoteStream: MediaStream | null = null;
   private lipSyncAttached = false;
+  private gazeInvalidStartedAtMs: number | null = null;
   // P1 demo overlay instance
   private p1GazeController: GazeController | null = null;
   // P1 zone-tracking logic instance for zone, dwell, and fixation state.
@@ -57,6 +58,9 @@ export class ConversationStepController {
   private readonly runtime: RuntimeInfo;
   private readonly sessionId: string;
   private readonly reporter: BackendReporter;
+  // blur tune
+  private readonly visionBlurGraceMs = 60;
+  private readonly visionBlurFullMs = 150;
 
   constructor(deps: {
     config: StudyConfig;
@@ -250,6 +254,7 @@ export class ConversationStepController {
     this.gazeFSM?.reset();
     this.gazeFSM = null;
     this.lookAtSmoother = null;
+    this.gazeInvalidStartedAtMs = null;
 
     if (this.viewer) {
       this.viewer.destroy();
@@ -457,12 +462,16 @@ export class ConversationStepController {
           });
         }
         prevBackendValid = valid;
+        this.p1GazeController?.setVisionBlurAmount(this.updateVisionBlurAmount(now, valid));
 
         if (!valid) {
           debugDot.style.background = debugWarningColor;
           debugLabel.textContent = "User Gaze: backend (no data)";
           return;
         }
+      } else {
+        this.gazeInvalidStartedAtMs = null;
+        this.p1GazeController?.setVisionBlurAmount(0);
       }
 
       // BackendGazeProvider delivers [0,1] coordinates normalised to the
@@ -658,6 +667,30 @@ export class ConversationStepController {
     };
 
     this.gazeLoopId = requestAnimationFrame(loop);
+  }
+
+  private updateVisionBlurAmount(nowMs: number, gazeValid: boolean): number {
+    if (gazeValid) {
+      this.gazeInvalidStartedAtMs = null;
+      return 0;
+    }
+
+    if (this.gazeInvalidStartedAtMs === null) {
+      this.gazeInvalidStartedAtMs = nowMs;
+      return 0;
+    }
+
+    const invalidDurationMs = nowMs - this.gazeInvalidStartedAtMs;
+    if (invalidDurationMs <= this.visionBlurGraceMs) {
+      return 0;
+    }
+
+    const normalized = Math.min(
+      1,
+      (invalidDurationMs - this.visionBlurGraceMs)
+      / Math.max(1, this.visionBlurFullMs - this.visionBlurGraceMs),
+    );
+    return normalized * normalized;
   }
 
   /** Sync study context to backend for high-rate Tobii research logging. */

@@ -22,6 +22,7 @@ export interface GazeControllerOptions {
 // controller
 export class GazeController {
   private overlay: HTMLDivElement | null = null;
+  private visionBlurOverlay: HTMLDivElement | null = null;
   private suspicionVignette: HTMLDivElement | null = null;
   private hud: HTMLDivElement | null = null;
   private zoneElements = new Map<SpyZoneId, HTMLDivElement>();
@@ -43,6 +44,16 @@ export class GazeController {
     overlay.style.display = options.showOverlay === false ? "none" : "block";
     overlay.style.zIndex = "2";
     scene.appendChild(overlay);
+
+    const visionBlurOverlay = document.createElement("div");
+    visionBlurOverlay.style.position = "absolute";
+    visionBlurOverlay.style.inset = "0";
+    visionBlurOverlay.style.pointerEvents = "none";
+    visionBlurOverlay.style.opacity = "0";
+    visionBlurOverlay.style.zIndex = "2";
+    visionBlurOverlay.style.transition = "opacity 180ms ease-out, backdrop-filter 180ms ease-out, background 180ms ease-out";
+    visionBlurOverlay.style.backdropFilter = "blur(0px)";
+    scene.appendChild(visionBlurOverlay);
 
     // suspicion vignette
     const suspicionVignette = document.createElement("div");
@@ -74,6 +85,7 @@ export class GazeController {
     scene.appendChild(hud);
 
     this.overlay = overlay;
+    this.visionBlurOverlay = visionBlurOverlay;
     this.suspicionVignette = suspicionVignette;
     this.hud = hud;
 
@@ -120,6 +132,16 @@ export class GazeController {
     this.hud.innerHTML = lines
       .map((line) => `<div>${escapeHtml(line)}</div>`)
       .join("");
+  }
+
+  // blur visual
+  setVisionBlurAmount(amount: number): void {
+    if (!this.visionBlurOverlay) return;
+
+    const clamped = Math.min(1, Math.max(0, amount));
+    this.visionBlurOverlay.style.opacity = clamped.toFixed(1);
+    this.visionBlurOverlay.style.backdropFilter = `blur(${(clamped * 7).toFixed(2)}px)`;
+    this.visionBlurOverlay.style.background = `rgba(8, 12, 18, ${(clamped * 0.18).toFixed(3)})`;
   }
 
 
@@ -218,9 +240,11 @@ export class GazeController {
 
   private detachSceneArtifacts(): void {
     this.overlay?.remove();
+    this.visionBlurOverlay?.remove();
     this.suspicionVignette?.remove();
     this.hud?.remove();
     this.overlay = null;
+    this.visionBlurOverlay = null;
     this.suspicionVignette = null;
     this.hud = null;
   }
