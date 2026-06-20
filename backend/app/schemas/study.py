@@ -85,10 +85,24 @@ class FormField(BaseModel):
     max: int | None = None
 
 
+class IntroTactic(BaseModel):
+    text: str
+    danger: bool = False
+
+
+class IntroSection(BaseModel):
+    num: str
+    title: str
+    alert: bool = False
+    body: str | None = None
+    tactics: list[IntroTactic] | None = None
+
+
 class FlowStep(BaseModel):
     id: str
     type: Literal[
         "hero",
+        "intro",
         "info",
         "consent",
         "form",
@@ -108,6 +122,14 @@ class FlowStep(BaseModel):
     fields: list[FormField] | None = None
     condition: str | None = None
     questionnaire_id: str | None = None
+    # Intro (mission briefing) step fields
+    class_tag: str | None = None
+    class_meta: str | None = None
+    file_number: str | None = None
+    sections: list[IntroSection] | None = None
+    order_text: str | None = None
+    agent_name: str | None = None
+    agent_clearance: str | None = None
 
 
 class Flow(BaseModel):

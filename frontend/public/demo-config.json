@@ -6,69 +6,82 @@
     "description": "Within-subjects study comparing baseline and gaze-aware avatar conditions during a quiz conversation.",
     "study_mode": "within_subjects",
     "conditions": [
-      "baseline",
-      "gazeaware"
+      "baseline"
     ],
     "questions_per_condition": 5,
     "assignment": {
-      "condition_order_mode": "counterbalanced",
-      "question_order_mode": "shuffle"
+      "condition_order_mode": "fixed",
+      "fixed_condition_order": [
+        "baseline"
+      ],
+      "question_order_mode": "fixed"
     }
   },
   "flow": {
     "steps": [
       {
-        "id": "welcome",
-        "type": "info",
-        "title": "Welcome",
-        "content_blocks": [
-          "Thank you for taking part in this virtual interaction study.",
-          "In this study, you will interact with a virtual quizmaster and answer general-knowledge questions.",
-          "We are not evaluating your knowledge. Instead, we are interested in how people experience and respond to different avatar behaviors during the interaction."
-        ]
+        "id": "Start",
+        "type": "hero",
+        "title": "Eyes On Me",
+        "tagline": "A Voice Interrogation Game",
+        "button_label": "Start Game",
+        "footer": "Harbor City · 1949",
+        "bg_image": "assets/scene-menu-bg.png"
       },
       {
-        "id": "consent",
-        "type": "consent",
-        "title": "Information and Consent",
-        "content": "Please read the following before you continue. Participation is voluntary. You may stop at any time without any disadvantage.",
-        "consent_label": "I agree to participate in this study."
-      },
-      {
-        "id": "demographic",
-        "type": "form",
-        "title": "Demographic Information",
-        "fields": [
+        "id": "intro",
+        "type": "intro",
+        "title": "Eyes On Me",
+        "tagline": "Velorian Ministry · Office of Director Vane",
+        "class_tag": "Top Secret",
+        "class_meta": "Eyes Only",
+        "file_number": "VM-0619",
+        "bg_image": "assets/scene-intro-bg.png",
+        "button_label": "Begin Mission",
+        "agent_name": "Agent Miller",
+        "agent_clearance": "Clearance A-1",
+        "order_text": "Stay calm. Do not get caught.",
+        "sections": [
           {
-            "id": "age",
-            "type": "number",
-            "label": "Age",
-            "required": true,
-            "min": 18,
-            "max": 99
+            "num": "01",
+            "title": "Who You Are",
+            "body": "You are Agent Miller, an undercover operative. You have successfully infiltrated the Velorian Ministry."
           },
           {
-            "id": "gender",
-            "type": "select",
-            "label": "Gender",
-            "options": [
-              "Male",
-              "Female",
-              "Diverse",
-              "Prefer not to say"
-            ],
-            "required": true
+            "num": "02",
+            "title": "The Situation",
+            "body": "You are in the office of Director Vane for a routine security review. He is cold, highly suspicious, and watching you closely."
           },
           {
-            "id": "corrective_lenses",
-            "type": "select",
-            "label": "Do you currently use corrective lenses?",
-            "options": [
-              "Yes",
-              "No",
-              "Prefer not to say"
-            ],
-            "required": true
+            "num": "03",
+            "title": "Your Objective",
+            "body": "Gather as much intelligence as possible for your post-briefing evaluation.",
+            "tactics": [
+              {
+                "text": "Listen. Memorize names, dates, and other clues Vane mentions."
+              },
+              {
+                "text": "Observe. Scan the room for visual clues."
+              }
+            ]
+          },
+          {
+            "num": "04",
+            "title": "How to Survive — Suspicion",
+            "alert": true,
+            "body": "Scanning the room while Vane makes direct eye contact raises his suspicion. If suspicion peaks, you will be arrested.",
+            "tactics": [
+              {
+                "text": "Avoid detection. Don't look around while he's watching you.",
+                "danger": true
+              },
+              {
+                "text": "Safe windows. Look around only when Vane is turned away or distracted."
+              },
+              {
+                "text": "Return eye contact. Look back at Vane the instant he turns to face you."
+              }
+            ]
           }
         ]
       },
@@ -78,96 +91,26 @@
         "title": "Gaze Verification"
       },
       {
-        "id": "character_selection",
-        "type": "avatar_selection",
-        "title": "Avatar Selection",
-        "content": "Please choose the avatar you would like to interact with during the study."
-      },
-      {
-        "id": "round1_instructions",
-        "type": "info",
-        "title": "Round 1",
-        "content_blocks": [
-          "You are about to begin the first quiz round.",
-          "Please speak clearly and at a natural pace.",
-          "Try not to interrupt the avatar while it is speaking.",
-          "If you do not know an answer, simply say \"I don't know.\" If you did not hear the question clearly, you may ask for it to be repeated.",
-          "If the avatar misunderstands you, do not worry — just continue with the quiz.",
-          "When you are ready, click the button below to begin."
-        ],
-        "button_label": "Start Quiz"
-      },
-      {
         "id": "condition1",
         "type": "conversation",
-        "condition": "baseline"
+        "condition": "baseline",
+        "bg_image": "assets/bg_game.png"
       },
       {
         "id": "questionnaire1",
         "type": "questionnaire",
-        "title": "Questionnaire — Round 1",
-        "questionnaire_id": "round"
-      },
-      {
-        "id": "round2_instructions",
-        "type": "info",
-        "title": "Round 2",
-        "content_blocks": [
-          "You are about to begin the second quiz round.",
-          "The interaction works the same way as before.",
-          "Please continue to speak clearly and at a natural pace.",
-          "If the avatar misunderstands you or you miss a question, just continue and answer as well as you can.",
-          "When you are ready, click the button below to begin."
-        ],
-        "button_label": "Start Quiz"
-      },
-      {
-        "id": "condition2",
-        "type": "conversation",
-        "condition": "gazeaware"
-      },
-      {
-        "id": "questionnaire2",
-        "type": "questionnaire",
-        "title": "Questionnaire — Round 2",
-        "questionnaire_id": "round"
-      },
-      {
-        "id": "comparison",
-        "type": "questionnaire",
-        "questionnaire_id": "comparison"
-      },
-      {
-        "id": "feedback",
-        "type": "questionnaire",
-        "questionnaire_id": "feedback"
-      },
-      {
-        "id": "ending",
-        "type": "info",
-        "title": "Thank You!",
-        "content_blocks": [
-          "Thank you for participating in this study.",
-          "You may now close this window."
-        ]
+        "title": "Questionnaire",
+        "questionnaire_id": "debriefing"
       }
     ]
   },
   "avatars": {
     "avatars": [
       {
-        "id": "avatar_b",
-        "label": "Female Avatar",
-        "model_file": "AvatarSample_B.vrm",
-        "voice": "alloy",
-        "thumbnail": "avatars/avatar_b_thumb.png"
-      },
-      {
-        "id": "avatar_c",
-        "label": "Male Avatar",
-        "model_file": "AvatarSample_C.vrm",
-        "voice": "echo",
-        "thumbnail": "avatars/avatar_c_thumb.png"
+        "id": "officer",
+        "label": "Officer",
+        "model_file": "Officer.vrm",
+        "voice": "echo"
       }
     ]
   },
@@ -254,31 +197,211 @@
           }
         ]
       },
-      "comparison": {
-        "title": "Comparison",
-        "instruction": "You have now completed both rounds.\nPlease compare the two versions of the avatar.",
+      "debriefing": {
+        "title": "Recall Report",
+        "instruction": "Before HQ closes the file, confirm what you saw and heard. Answer from memory — the record is graded on accuracy.",
         "items": [
           {
-            "id": "naturality",
-            "text": "Which version felt more natural?",
+            "id": "a1",
+            "text": "Which specific date was circled on the wall calendar?",
             "type": "choice",
             "options": [
-              "Round 1",
-              "Round 2",
-              "Both identical"
+              "The 7th",
+              "The 14th",
+              "The 21st",
+              "The 28th"
             ],
-            "required": true
+            "answer": 1,
+            "required": true,
+            "section_key": "A",
+            "section_title": "Visual Memory",
+            "section_note": "Recall what you observed at the scene."
           },
           {
-            "id": "future_choice",
-            "text": "Which version would you prefer to use in the future?",
+            "id": "a2",
+            "text": "What item was the missing dockworker Nikolai Vance last seen carrying?",
             "type": "choice",
             "options": [
-              "Round 1",
-              "Round 2",
-              "Both identical"
+              "A black briefcase",
+              "A leather bag",
+              "A brown backpack",
+              "A metal suitcase"
             ],
-            "required": true
+            "answer": 1,
+            "required": true,
+            "section_key": "A"
+          },
+          {
+            "id": "a3",
+            "text": "What color was the stolen keycard mentioned in the newspaper article?",
+            "type": "choice",
+            "options": [
+              "Red",
+              "Green",
+              "Blue",
+              "Yellow"
+            ],
+            "answer": 2,
+            "required": true,
+            "section_key": "A"
+          },
+          {
+            "id": "a4",
+            "text": "Where was the red X marked on the wall map?",
+            "type": "choice",
+            "options": [
+              "Harbor Warehouse No. 5",
+              "Old Embankment No. 12",
+              "Industrial Park No. 8",
+              "South of Train Station"
+            ],
+            "answer": 1,
+            "required": true,
+            "section_key": "A"
+          },
+          {
+            "id": "a5",
+            "text": "What is the case file number on the desk folder?",
+            "type": "choice",
+            "options": [
+              "#A7-12",
+              "#B3-08",
+              "#C5-15",
+              "#D9-20"
+            ],
+            "answer": 0,
+            "required": true,
+            "section_key": "A"
+          },
+          {
+            "id": "a6",
+            "text": "What phone extension was scribbled on the desk notepad?",
+            "type": "choice",
+            "options": [
+              "Ext. 301",
+              "Ext. 402",
+              "Ext. 504",
+              "Ext. 607"
+            ],
+            "answer": 1,
+            "required": true,
+            "section_key": "A"
+          },
+          {
+            "id": "b1",
+            "text": "What is the official codename of the Ministry's upcoming military operation?",
+            "type": "choice",
+            "options": [
+              "Operation Midnight",
+              "Operation Aurora",
+              "Operation Silence",
+              "Operation Storm"
+            ],
+            "answer": 1,
+            "required": true,
+            "section_key": "B",
+            "section_title": "Auditory Memory",
+            "section_note": "Recall what was said during the interrogation."
+          },
+          {
+            "id": "b2",
+            "text": "What is the name of the cargo vessel the rebels are using?",
+            "type": "choice",
+            "options": [
+              "The Neptune",
+              "The Hermes",
+              "The Poseidon",
+              "The Artemis"
+            ],
+            "answer": 1,
+            "required": true,
+            "section_key": "B"
+          },
+          {
+            "id": "b3",
+            "text": "At what specific time is the Ministry planning to initiate the raid?",
+            "type": "choice",
+            "options": [
+              "01:00 AM",
+              "02:30 AM",
+              "03:00 AM",
+              "04:15 AM"
+            ],
+            "answer": 2,
+            "required": true,
+            "section_key": "B"
+          },
+          {
+            "id": "b4",
+            "text": "Who did Director Vane identify as the rogue contact inside the Ministry?",
+            "type": "choice",
+            "options": [
+              "Michael",
+              "Thomas",
+              "James",
+              "Richard"
+            ],
+            "answer": 1,
+            "required": true,
+            "section_key": "B"
+          },
+          {
+            "id": "b5",
+            "text": "What emergency radio frequency or channel did Director Vane mention?",
+            "type": "choice",
+            "options": [
+              "Channel 8",
+              "Channel 12",
+              "Channel 16",
+              "Channel 22"
+            ],
+            "answer": 2,
+            "required": true,
+            "section_key": "B"
+          },
+          {
+            "id": "b6",
+            "text": "What is the secret verbal password for the field agents?",
+            "type": "choice",
+            "options": [
+              "Blue Moon",
+              "Red Sky",
+              "Green Light",
+              "Black Wind"
+            ],
+            "answer": 1,
+            "required": true,
+            "section_key": "B"
+          },
+          {
+            "id": "c1",
+            "text": "What security clearance level does an agent need to transmit on the emergency radio channel?",
+            "type": "choice",
+            "options": [
+              "Level 2",
+              "Level 3",
+              "Level 4",
+              "Level 5"
+            ],
+            "answer": 2,
+            "required": true,
+            "section_key": "C",
+            "section_title": "Transfer & Deduction",
+            "section_note": "Connect the visual evidence with what you heard."
+          },
+          {
+            "id": "c2",
+            "text": "What item did Nikolai Vance carry that is required to unlock the main gate at the Old Embankment?",
+            "type": "choice",
+            "options": [
+              "Red security card",
+              "Blue keycard",
+              "Metal key bundle",
+              "Electronic access device"
+            ],
+            "answer": 1,
+            "required": true,
+            "section_key": "C"
           }
         ]
       },
@@ -301,23 +424,58 @@
       "system_base": "(demo mode — Realtime disabled)",
       "system_end": "(demo mode — Realtime disabled)",
       "questions": [
-        { "id": "q01", "text": "What is the capital of France?" },
-        { "id": "q02", "text": "Who was the first person to walk on the Moon?" },
-        { "id": "q03", "text": "Who wrote 'Romeo and Juliet'?" },
-        { "id": "q04", "text": "Who developed the theory of relativity?" },
-        { "id": "q05", "text": "In which country is the Great Sphinx located?" },
-        { "id": "q06", "text": "Which ocean is the largest on Earth?" },
-        { "id": "q07", "text": "Which planet is the largest in the solar system?" },
-        { "id": "q08", "text": "Who painted the 'Mona Lisa'?" },
-        { "id": "q09", "text": "What ship sank in 1912 after hitting an iceberg?" },
-        { "id": "q10", "text": "Which is the largest land animal?" }
+        {
+          "id": "q01",
+          "text": "What is the capital of France?"
+        },
+        {
+          "id": "q02",
+          "text": "Who was the first person to walk on the Moon?"
+        },
+        {
+          "id": "q03",
+          "text": "Who wrote 'Romeo and Juliet'?"
+        },
+        {
+          "id": "q04",
+          "text": "Who developed the theory of relativity?"
+        },
+        {
+          "id": "q05",
+          "text": "In which country is the Great Sphinx located?"
+        },
+        {
+          "id": "q06",
+          "text": "Which ocean is the largest on Earth?"
+        },
+        {
+          "id": "q07",
+          "text": "Which planet is the largest in the solar system?"
+        },
+        {
+          "id": "q08",
+          "text": "Who painted the 'Mona Lisa'?"
+        },
+        {
+          "id": "q09",
+          "text": "What ship sank in 1912 after hitting an iceberg?"
+        },
+        {
+          "id": "q10",
+          "text": "Which is the largest land animal?"
+        }
       ]
     }
   },
   "gaze_profiles": {
     "profiles": {
       "default": {
-        "states": ["baseline", "gazeaware_pending", "gazeaware", "gaze_break"],
+        "states": [
+          "baseline",
+          "gazeaware_pending",
+          "gazeaware",
+          "gaze_break"
+        ],
         "pending_time_ms": 300,
         "mutual_time_ms": 3600,
         "break_time_ms": 1250,
