@@ -193,6 +193,10 @@ export interface GazeProfiles {
   profiles: Record<string, GazeProfile>;
 }
 
+export interface DialogueScripts {
+  scripts: Record<string, DialogueScript>;
+}
+
 export interface StudyConfig {
   meta: StudyMeta;
   flow: Flow;
@@ -200,6 +204,7 @@ export interface StudyConfig {
   questionnaires: Questionnaires;
   prompts: Prompts;
   gaze_profiles: GazeProfiles;
+  dialogue_scripts: DialogueScripts;
 }
 
 // --- Session metadata (experimenter start screen) ---

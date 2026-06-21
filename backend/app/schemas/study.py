@@ -230,6 +230,7 @@ class StudyConfig(BaseModel):
     questionnaires: Questionnaires
     prompts: Prompts
     gaze_profiles: GazeProfiles
+    dialogue_scripts: DialogueScripts = Field(default_factory=lambda: DialogueScripts(scripts={}))
 
 
 # --- Resolved assignment (session-scoped) ---

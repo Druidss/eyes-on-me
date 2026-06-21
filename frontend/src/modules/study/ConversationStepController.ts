@@ -3,6 +3,7 @@ import type {
   FlowStep,
   Avatar,
   RuntimeInfo,
+  DialogueLineNode,
 } from "../../shared/types.js";
 import { ViewerCore } from "../viewer/ViewerCore.js";
 import { VRMLookAtSmoother, SACCADE_PROFILES } from "../viewer/chatvrm/VRMLookAtSmoother.js";
@@ -22,6 +23,13 @@ import { DemoControllerP1 } from "../spy/DemoControllerP1.js";
 import { GazeZoneTracker } from "../spy/GazeZoneTracker.js";
 // P1 suspicion metric
 import { SuspicionMetric } from "../spy/SuspicionMetric.js";
+// P1 suspicion → audio cue binding
+import { SuspicionAudioController } from "../spy/SuspicionAudioController.js";
+// Timeline: fixed-time cue scheduler, time-driven (decoupled from gaze/suspicion state)
+import { TimelineController } from "./TimelineController.js";
+import { TimelineAudioPlayer, createPlayAudioActionHandler } from "./timelineActions/playAudioAction.js";
+// Generic branching dialogue script engine (audio + subtitle, advances on audio end)
+import { DialogueSequencer } from "./DialogueSequencer.js";
 
 /**
  * Manages the conversation step lifecycle: 3D viewer, gaze tracking,
@@ -45,6 +53,8 @@ export class ConversationStepController {
   private p1ZoneTracker: GazeZoneTracker | null = null;
   // P1 suspicion-metric instance
   private p1SuspicionMetric: SuspicionMetric | null = null;
+  // P1 suspicion → audio cue controller
+  private p1SuspicionAudio: SuspicionAudioController | null = null;
 
   private stepId: string | undefined;
   private condition: string | undefined;
@@ -53,6 +63,34 @@ export class ConversationStepController {
   private readonly runtime: RuntimeInfo;
   private readonly sessionId: string;
   private readonly reporter: BackendReporter;
+
+  // Timer state (ported from P2 branch)
+  private timerIntervalId: ReturnType<typeof setInterval> | null = null;
+  private timerStartTime = 0;
+  private timerEl: HTMLElement | null = null;
+  private onTimeout: (() => void) | null = null;
+  private durationSeconds: number | null = null;
+
+  // Timeline: fixed-time cues (e.g. play_audio) within a conversation step
+  private timelineController: TimelineController | null = null;
+  private timelineAudioPlayer: TimelineAudioPlayer | null = null;
+
+  // Dialogue script: branching audio + subtitle scene (e.g. interrogation script)
+  private dialogueSequencer: DialogueSequencer | null = null;
+  private dialogueAudio: HTMLAudioElement | null = null;
+  private dialogueSubtitleEl: HTMLElement | null = null;
+  private dialogueSuspicionMultiplier = 1;
+  // Fixed gap between dialogue lines: subtitle clears, then this many ms
+  // elapse before the next line starts — softens the otherwise-abrupt
+  // audio-to-audio cut.
+  private static readonly DIALOGUE_LINE_GAP_MS = 2000;
+  private dialoguePauseTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  // Suspicion meter UI: progress bar + text status, shown whenever
+  // suspicion tracking is active for this step (see needsSuspicionTracking)
+  private suspicionMeterContainerEl: HTMLElement | null = null;
+  private suspicionMeterFillEl: HTMLElement | null = null;
+  private suspicionMeterStateEl: HTMLElement | null = null;
 
   constructor(deps: {
     config: StudyConfig;
@@ -72,9 +110,72 @@ export class ConversationStepController {
     step: FlowStep,
     selectedAvatar: Avatar | null,
     resolvedCondition?: string,
+    onTimeout?: () => void,
   ): void {
     this.stepId = step.id;
     this.condition = resolvedCondition ?? step.condition;
+    this.onTimeout = onTimeout ?? null;
+    this.durationSeconds = step.duration_seconds ?? null;
+
+    // Timeline: build a controller only if this step has cues configured.
+    // Pure time-driven — does not read gaze/suspicion state. The action
+    // registry currently only knows "play_audio"; new action types are
+    // added here without touching TimelineController itself.
+    if (step.timeline && step.timeline.length > 0) {
+      this.timelineAudioPlayer = new TimelineAudioPlayer(
+        (src) => `${import.meta.env.BASE_URL}${src}`,
+      );
+      this.timelineController = new TimelineController({
+        cues: step.timeline,
+        actions: {
+          play_audio: createPlayAudioActionHandler(this.timelineAudioPlayer),
+        },
+        onCueFired: (cue, elapsedSeconds) => {
+          this.reporter.emit("study.timeline_cue_fired", {
+            cue_id: cue.id,
+            at_seconds: cue.at_seconds,
+            elapsed_seconds: elapsedSeconds,
+            action_types: cue.actions.map((a) => a.type),
+            condition: this.condition ?? null,
+            step_id: this.stepId ?? null,
+          });
+        },
+      });
+    } else {
+      this.timelineController = null;
+      this.timelineAudioPlayer = null;
+    }
+
+    // Dialogue script: branching audio + subtitle scene (e.g. interrogation).
+    // Script-agnostic — DialogueSequencer has no knowledge of this specific
+    // script's content, only the generic node graph shape.
+    this.dialogueSuspicionMultiplier = 1;
+    if (step.dialogue_script) {
+      const script = this.config.dialogue_scripts.scripts[step.dialogue_script];
+      if (!script) {
+        console.error(
+          `[ConversationStepController] dialogue_script "${step.dialogue_script}" not found in study config`,
+        );
+        this.dialogueSequencer = null;
+      } else {
+        this.dialogueSequencer = new DialogueSequencer(script, {
+          onLineStart: (node) => this.handleDialogueLineStart(node),
+          onScriptEnd: (lastNode) => this.handleDialogueScriptEnd(lastNode),
+          onSuspicionMultiplierChange: (multiplier) => {
+            this.dialogueSuspicionMultiplier = multiplier;
+          },
+          resolveBranch: () => {
+            // Default to "low" if no suspicion tracking is active for
+            // some reason (e.g. misconfigured step) — fails toward the
+            // less punitive branch rather than throwing.
+            const isLow = this.p1SuspicionMetric?.isLowSuspicion() ?? true;
+            return isLow ? "low" : "high";
+          },
+        });
+      }
+    } else {
+      this.dialogueSequencer = null;
+    }
 
     // Debug overlays are visible in demo mode or with ?debug, hidden for real participants
     const showDebug = new URLSearchParams(window.location.search).has("demo")
@@ -126,16 +227,97 @@ export class ConversationStepController {
     if (!showDebug) eyeLabel.style.display = "none";
     viewerContainer.appendChild(eyeLabel);
 
+    // Elapsed timer — always visible: shows how long the current
+    // conversation has been running. The "/ X:XX" limit suffix only
+    // appears when duration_seconds is configured (a hard cap); without
+    // it, this is purely a running clock.
+    const timerContainer = document.createElement("div");
+    timerContainer.className = "conversation-timer";
+    const timerLabel = document.createElement("span");
+    timerLabel.className = "conversation-timer-time";
+    timerLabel.textContent = "0:00";
+    timerContainer.appendChild(timerLabel);
+    if (this.durationSeconds != null) {
+      const timerLimit = document.createElement("span");
+      timerLimit.className = "conversation-timer-limit";
+      const mins = Math.floor(this.durationSeconds / 60);
+      const secs = this.durationSeconds % 60;
+      timerLimit.textContent = ` / ${mins}:${String(secs).padStart(2, "0")}`;
+      timerContainer.appendChild(timerLimit);
+    }
+    viewerContainer.appendChild(timerContainer);
+    this.timerEl = timerLabel;
+
+    // Suspicion meter — always visible: progress bar + text status,
+    // part of the core game UI (not a debug overlay). Only meaningful
+    // for steps that actually track suspicion (see needsSuspicionTracking
+    // below), so it starts hidden and is shown once that's known.
+    const suspicionContainer = document.createElement("div");
+    suspicionContainer.className = "suspicion-meter";
+    suspicionContainer.style.display = "none";
+
+    const suspicionLabel = document.createElement("div");
+    suspicionLabel.className = "suspicion-meter-label";
+    suspicionLabel.textContent = "Suspicion";
+    suspicionContainer.appendChild(suspicionLabel);
+
+    const suspicionTrack = document.createElement("div");
+    suspicionTrack.className = "suspicion-meter-track";
+    const suspicionFill = document.createElement("div");
+    suspicionFill.className = "suspicion-meter-fill";
+    suspicionTrack.appendChild(suspicionFill);
+    suspicionContainer.appendChild(suspicionTrack);
+
+    const suspicionStateEl = document.createElement("div");
+    suspicionStateEl.className = "suspicion-meter-state";
+    suspicionStateEl.textContent = "Relaxed";
+    suspicionContainer.appendChild(suspicionStateEl);
+
+    viewerContainer.appendChild(suspicionContainer);
+    this.suspicionMeterContainerEl = suspicionContainer;
+    this.suspicionMeterFillEl = suspicionFill;
+    this.suspicionMeterStateEl = suspicionStateEl;
+
+    // Dialogue subtitle bar (visible only when a dialogue_script is configured)
+    // Shows the line text only — no speaker label or stage direction.
+    const subtitleContainer = document.createElement("div");
+    subtitleContainer.className = "dialogue-subtitle";
+    subtitleContainer.style.display = "none";
+
+    const textEl = document.createElement("div");
+    textEl.className = "dialogue-subtitle-text";
+    subtitleContainer.appendChild(textEl);
+
+    viewerContainer.appendChild(subtitleContainer);
+    this.dialogueSubtitleEl = textEl;
+
     wrapper.appendChild(viewerContainer);
 
     // P1 integration:
     // when ?p1demo is present, keep the normal study conversation scene
     // but attach the P1 zone overlay on top of the existing viewer container.
-    if (new URLSearchParams(window.location.search).has("p1demo")) {
-      this.p1DemoController = new DemoControllerP1();
+    const p1DemoMode = new URLSearchParams(window.location.search).has("p1demo");
+    const needsSuspicionTracking = p1DemoMode || step.dialogue_script != null;
+
+    if (needsSuspicionTracking) {
       this.p1ZoneTracker = new GazeZoneTracker();
-      // P1 suspicion 
+      // Suspicion metric: drives both the P1 debug HUD (when p1demo is set)
+      // and dialogue script branch checks (when dialogue_script is set).
+      // These two consumers share one instance — there is exactly one
+      // suspicion value per conversation step, not one per consumer.
       this.p1SuspicionMetric = new SuspicionMetric();
+      // The suspicion meter is real game UI, not a debug overlay — show
+      // it whenever suspicion is actually being tracked for this step.
+      if (this.suspicionMeterContainerEl) {
+        this.suspicionMeterContainerEl.style.display = "flex";
+      }
+    }
+
+    if (p1DemoMode) {
+      this.p1DemoController = new DemoControllerP1();
+      this.p1SuspicionAudio = new SuspicionAudioController({
+        resolveUrl: (src) => `${import.meta.env.BASE_URL}${src}`,
+      });
       this.p1DemoController.attachToScene(viewerContainer, {
         title: "P1 Demo Controller",
         showOverlay: true,
@@ -217,6 +399,11 @@ export class ConversationStepController {
 
   /** Tear down viewer, gaze loop, and realtime client. Idempotent. */
   destroy(): void {
+    this.stopTimer();
+    this.stopDialogue();
+    this.timelineAudioPlayer?.dispose();
+    this.timelineAudioPlayer = null;
+    this.timelineController = null;
     this.syncGazeContext(null, null);
     this.detachLipSync();
 
@@ -231,7 +418,13 @@ export class ConversationStepController {
     this.p1DemoController = null;
     this.p1ZoneTracker = null;
     this.p1SuspicionMetric = null;
+    this.p1SuspicionAudio?.dispose();
+    this.p1SuspicionAudio = null;
     //_________________________________________________________________
+
+    this.suspicionMeterContainerEl = null;
+    this.suspicionMeterFillEl = null;
+    this.suspicionMeterStateEl = null;
 
     if (this.gazeLoopId !== null) {
       cancelAnimationFrame(this.gazeLoopId);
@@ -251,6 +444,181 @@ export class ConversationStepController {
   }
 
   // --- Internal ---
+
+  /**
+   * Start the elapsed-time heartbeat. Always runs — the on-screen timer
+   * is unconditional UI (shows how long the step has been running), and
+   * the TimelineController (if configured) shares this same clock.
+   *
+   * duration_seconds, when set, additionally drives a warning/expired
+   * visual state and auto-advances via onTimeout — but the heartbeat
+   * itself does not depend on it being configured.
+   */
+  private startTimer(): void {
+    this.timerStartTime = performance.now();
+    const duration = this.durationSeconds;
+    const WARNING_THRESHOLD = 30; // seconds remaining
+
+    this.timelineController?.reset();
+
+    this.timerIntervalId = setInterval(() => {
+      const elapsed = Math.floor((performance.now() - this.timerStartTime) / 1000);
+
+      this.timelineController?.tick(elapsed);
+
+      // Always render the running clock, with or without a configured limit.
+      const mins = Math.floor(elapsed / 60);
+      const secs = elapsed % 60;
+      if (this.timerEl) {
+        this.timerEl.textContent = `${mins}:${String(secs).padStart(2, "0")}`;
+      }
+
+      if (duration == null) return;
+
+      // Warning state — last N seconds
+      const remaining = duration - elapsed;
+      const container = this.timerEl?.closest(".conversation-timer");
+      if (container) {
+        container.classList.toggle("timer-warning", remaining <= WARNING_THRESHOLD && remaining > 0);
+        container.classList.toggle("timer-expired", remaining <= 0);
+      }
+
+      if (elapsed >= duration) {
+        this.stopTimer();
+        this.reporter.emit("conversation.timer_expired", {
+          duration_seconds: duration,
+          elapsed_seconds: elapsed,
+          condition: this.condition ?? null,
+          step_id: this.stepId ?? null,
+        });
+        this.onTimeout?.();
+      }
+    }, 1000);
+  }
+
+  /** Display labels for each SuspicionState, shown below the progress bar. */
+  private static readonly SUSPICION_STATE_LABELS: Record<string, string> = {
+    relaxed: "Relaxed",
+    neutral: "Neutral",
+    alert: "Alert",
+    suspicious: "Suspicious",
+    confrontational: "Confrontational",
+  };
+
+  /**
+   * Update the always-visible suspicion meter (progress bar + text
+   * status). `value` is assumed to be on SuspicionMetric's default
+   * 0–100 scale; states beyond that range are still clamped here for
+   * display safety even though SuspicionMetric already clamps
+   * internally.
+   */
+  private updateSuspicionMeterUI(value: number, state: string): void {
+    if (this.suspicionMeterFillEl) {
+      const pct = Math.max(0, Math.min(100, value));
+      this.suspicionMeterFillEl.style.width = `${pct}%`;
+    }
+    if (this.suspicionMeterStateEl) {
+      this.suspicionMeterStateEl.textContent =
+        ConversationStepController.SUSPICION_STATE_LABELS[state] ?? state;
+    }
+    if (this.suspicionMeterContainerEl) {
+      this.suspicionMeterContainerEl.dataset.suspicionState = state;
+    }
+  }
+
+  /** Stop the timer interval. Idempotent. */
+  private stopTimer(): void {
+    if (this.timerIntervalId !== null) {
+      clearInterval(this.timerIntervalId);
+      this.timerIntervalId = null;
+    }
+  }
+
+  /**
+   * Render a dialogue line's subtitle/speaker/direction text and start
+   * playing its audio. Wires the audio element's `ended` event back into
+   * DialogueSequencer.advance() — the sequencer itself never touches
+   * audio playback directly.
+   */
+  private handleDialogueLineStart(node: DialogueLineNode): void {
+    if (this.dialogueSubtitleEl) this.dialogueSubtitleEl.textContent = node.text;
+    const container = this.dialogueSubtitleEl?.closest(".dialogue-subtitle") as HTMLElement | null;
+    if (container) container.style.display = "flex";
+
+    this.dialogueAudio?.pause();
+    const audio = new Audio(`${import.meta.env.BASE_URL}${node.audio_src}`);
+    audio.addEventListener("ended", () => this.startDialoguePause());
+    audio.play().catch((err: unknown) => {
+      console.warn(`[dialogue] play failed for node "${node.id}":`, err);
+    });
+    this.dialogueAudio = audio;
+
+    this.reporter.emit("study.dialogue_line_started", {
+      script_node_id: node.id,
+      condition: this.condition ?? null,
+      step_id: this.stepId ?? null,
+    });
+  }
+
+  /**
+   * Run the fixed gap between dialogue lines: clear the subtitle bar
+   * (black-screen-style pause, distinct from an empty-but-visible bar)
+   * and wait DIALOGUE_LINE_GAP_MS before advancing the sequencer.
+   *
+   * The timeout id is tracked so destroy()/stopDialogue() can cancel a
+   * pending pause if the step is torn down mid-gap — otherwise a stray
+   * advance() could fire against an already-destroyed sequencer.
+   */
+  private startDialoguePause(): void {
+    if (this.dialogueSubtitleEl) this.dialogueSubtitleEl.textContent = "";
+    const container = this.dialogueSubtitleEl?.closest(".dialogue-subtitle") as HTMLElement | null;
+    container?.classList.add("dialogue-subtitle-paused");
+
+    // Flash the elapsed-timer red for the duration of the pause — a
+    // visual beat between lines, distinct from the timer-warning/expired
+    // states which are about an actual duration_seconds limit.
+    const timerContainer = this.timerEl?.closest(".conversation-timer") as HTMLElement | null;
+    timerContainer?.classList.add("timer-pause-flash");
+
+    this.dialoguePauseTimeoutId = setTimeout(() => {
+      this.dialoguePauseTimeoutId = null;
+      container?.classList.remove("dialogue-subtitle-paused");
+      timerContainer?.classList.remove("timer-pause-flash");
+      this.dialogueSequencer?.advance();
+    }, ConversationStepController.DIALOGUE_LINE_GAP_MS);
+  }
+
+  /** Hide the subtitle bar and emit a telemetry marker when the script ends. */
+  private handleDialogueScriptEnd(lastNode: DialogueLineNode): void {
+    const container = this.dialogueSubtitleEl?.closest(".dialogue-subtitle") as HTMLElement | null;
+    if (container) container.style.display = "none";
+
+    this.reporter.emit("study.dialogue_script_ended", {
+      last_node_id: lastNode.id,
+      condition: this.condition ?? null,
+      step_id: this.stepId ?? null,
+    });
+
+    // Auto-advance once the script reaches its end. Reuses the same
+    // callback as the duration_seconds timeout — both mean "this
+    // conversation step is over, move on" — so a step can rely on
+    // script completion instead of (or alongside) a wall-clock limit.
+    this.onTimeout?.();
+  }
+
+  /** Stop dialogue audio and release the sequencer. Idempotent. */
+  private stopDialogue(): void {
+    if (this.dialoguePauseTimeoutId !== null) {
+      clearTimeout(this.dialoguePauseTimeoutId);
+      this.dialoguePauseTimeoutId = null;
+      this.timerEl?.closest(".conversation-timer")?.classList.remove("timer-pause-flash");
+    }
+    this.dialogueAudio?.pause();
+    if (this.dialogueAudio) this.dialogueAudio.src = "";
+    this.dialogueAudio = null;
+    this.dialogueSequencer = null;
+    this.dialogueSuspicionMultiplier = 1;
+  }
 
   private initViewer(
     canvas: HTMLCanvasElement,
@@ -313,6 +681,12 @@ export class ConversationStepController {
 
         // Signal avatar readiness — releases the deferred first assistant response
         this.realtimeClient?.signalReady();
+
+        // Start elapsed timer (auto-advances when duration reached) — ported from P2
+        this.startTimer();
+
+        // Start the dialogue script, if one is configured for this step
+        this.dialogueSequencer?.start();
 
         this.startGazeTracking(container, debugDot, debugLabel, fsmLabel, mgLabel, eyeLabel, condition);
       })
@@ -499,6 +873,9 @@ export class ConversationStepController {
         ? this.p1SuspicionMetric?.update({
             zoneSnapshot: p1Snapshot,
             nowMs: now,
+            // Dialogue safe-window lines (NPC looking away) suppress
+            // suspicion gain for their duration; 1 = no effect.
+            suspicionMultiplier: this.dialogueSuspicionMultiplier,
           })
         : null;
       if (p1Snapshot) {
@@ -509,6 +886,25 @@ export class ConversationStepController {
           perZoneCounts: p1Snapshot.fixation.per_zone_counts,
           suspicionValue: p1SuspicionSnapshot?.value,
           suspicionState: p1SuspicionSnapshot?.state,
+        });
+      }
+      // Suspicion meter UI: update every frame so the bar tracks the
+      // continuously-changing value smoothly, not just on state
+      // transitions (unlike the debug HUD / audio cue below).
+      if (p1SuspicionSnapshot) {
+        this.updateSuspicionMeterUI(p1SuspicionSnapshot.value, p1SuspicionSnapshot.state);
+      }
+      // Suspicion → audio cue: only fire on state transitions (not every
+      // frame). playForState() is itself a no-op if the state hasn't
+      // changed, but gating on `.changed` here keeps the telemetry event
+      // from firing redundantly and makes the trigger condition explicit.
+      if (p1SuspicionSnapshot?.changed) {
+        this.p1SuspicionAudio?.playForState(p1SuspicionSnapshot.state);
+        this.reporter.emit("spy.suspicion_audio_triggered", {
+          state: p1SuspicionSnapshot.state,
+          value: p1SuspicionSnapshot.value,
+          condition: this.condition ?? null,
+          step_id: this.stepId ?? null,
         });
       }
       //______________________________________________________________________
