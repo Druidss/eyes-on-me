@@ -8,6 +8,7 @@ import {
   renderQuestionnaire,
   type QuestionnaireResult,
 } from "./QuestionnaireRenderer.js";
+import { playZoomTransitionSfx } from "../../shared/sfx.js";
 
 /** Callbacks the step renderers need from the orchestrator. */
 export interface StepCallbacks {
@@ -442,6 +443,164 @@ export function renderHeroStep(
     <span>Tracker Calibrated</span>
   </span>`;
   wrapper.appendChild(footer);
+}
+
+// --- Intro (Mission briefing) ---
+
+export function renderIntroStep(
+  wrapper: HTMLElement,
+  step: FlowStep,
+  { advance }: StepCallbacks,
+): void {
+  wrapper.classList.add("intro-step");
+
+  if (step.bg_image) {
+    const bg = document.createElement("div");
+    bg.className = "intro-bg";
+    bg.style.backgroundImage = `url("${import.meta.env.BASE_URL}${step.bg_image}")`;
+    wrapper.appendChild(bg);
+  }
+
+  const scrimLeft = document.createElement("div");
+  scrimLeft.className = "intro-scrim-left";
+  wrapper.appendChild(scrimLeft);
+
+  const scrimVignette = document.createElement("div");
+  scrimVignette.className = "intro-scrim-vignette";
+  wrapper.appendChild(scrimVignette);
+
+  const scrimEdge = document.createElement("div");
+  scrimEdge.className = "intro-scrim-edge";
+  wrapper.appendChild(scrimEdge);
+
+  const grain = document.createElement("div");
+  grain.className = "intro-grain";
+  wrapper.appendChild(grain);
+
+  const dossier = document.createElement("div");
+  dossier.className = "intro-dossier";
+
+  // Classification bar
+  const classBar = document.createElement("div");
+  classBar.className = "intro-class-bar";
+  classBar.innerHTML = `
+    <span class="intro-class-tag">${step.class_tag ?? "Top Secret"}</span>
+    <span class="intro-class-meta">${step.class_meta ?? "Eyes Only"}</span>
+    <span class="intro-class-rule"></span>
+    <span class="intro-class-meta">${step.file_number ? `File&nbsp;#&nbsp;${step.file_number}` : ""}</span>`;
+  dossier.appendChild(classBar);
+
+  // Title / head
+  const head = document.createElement("div");
+  head.className = "intro-head";
+  const eyebrow = document.createElement("div");
+  eyebrow.className = "intro-eyebrow";
+  eyebrow.innerHTML = `<span class="intro-rule"></span>Mission Briefing`;
+  head.appendChild(eyebrow);
+
+  const title = document.createElement("h1");
+  title.className = "intro-title";
+  const words = (step.title ?? "Eyes On Me").split(" ");
+  if (words.length >= 3) {
+    title.innerHTML = `${words[0]} <span class="intro-on">${words[1]}</span> ${words.slice(2).join(" ")}`;
+  } else {
+    title.textContent = step.title ?? "Eyes On Me";
+  }
+  head.appendChild(title);
+
+  if (step.tagline) {
+    const subtitle = document.createElement("div");
+    subtitle.className = "intro-subtitle";
+    subtitle.textContent = step.tagline;
+    head.appendChild(subtitle);
+  }
+  dossier.appendChild(head);
+
+  // Scrollable body of briefing sections
+  const body = document.createElement("div");
+  body.className = "intro-body";
+
+  for (const section of step.sections ?? []) {
+    const sec = document.createElement("div");
+    sec.className = "intro-section";
+
+    const sHead = document.createElement("div");
+    sHead.className = "intro-section-head";
+    sHead.innerHTML = `<span class="intro-section-num">${section.num}</span>
+      <span class="intro-section-title${section.alert ? " alert" : ""}">${section.title}</span>`;
+    sec.appendChild(sHead);
+
+    if (section.body) {
+      const p = document.createElement("p");
+      p.textContent = section.body;
+      sec.appendChild(p);
+    }
+
+    if (section.tactics && section.tactics.length > 0) {
+      const tactics = document.createElement("div");
+      tactics.className = "intro-tactics";
+      for (const tactic of section.tactics) {
+        const t = document.createElement("div");
+        t.className = `intro-tactic${tactic.danger ? " danger" : ""}`;
+        t.innerHTML = `<span class="intro-tactic-ico"></span><span class="intro-tactic-txt">${tactic.text}</span>`;
+        tactics.appendChild(t);
+      }
+      sec.appendChild(tactics);
+    }
+
+    body.appendChild(sec);
+  }
+
+  if (step.order_text) {
+    const order = document.createElement("div");
+    order.className = "intro-order";
+    order.textContent = step.order_text;
+    body.appendChild(order);
+  }
+
+  dossier.appendChild(body);
+
+  // Actions footer
+  const actions = document.createElement("div");
+  actions.className = "intro-actions";
+
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "intro-btn";
+  btn.innerHTML = `<span class="intro-btn-fill"></span>
+    <svg class="intro-btn-ico" width="17" height="17" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M6 4l14 8-14 8V4z"/>
+    </svg>
+    <span class="intro-btn-label">${step.button_label ?? "Begin Mission"}</span>`;
+  btn.addEventListener("click", () => {
+    if (wrapper.classList.contains("intro-zooming")) return;
+    btn.disabled = true;
+    playZoomTransitionSfx();
+    wrapper.classList.add("intro-zooming");
+    setTimeout(() => advance(), 620);
+  });
+  actions.appendChild(btn);
+
+  if (step.agent_name) {
+    const sig = document.createElement("div");
+    sig.className = "intro-agent-sig";
+    sig.innerHTML = `<span class="intro-agent-lbl">Operative</span>
+      <span class="intro-agent-val">${step.agent_name}${step.agent_clearance ? ` · ${step.agent_clearance}` : ""}</span>`;
+    actions.appendChild(sig);
+  }
+
+  dossier.appendChild(actions);
+  wrapper.appendChild(dossier);
+
+  const tracker = document.createElement("div");
+  tracker.className = "intro-tracker";
+  tracker.innerHTML = `<span class="intro-tracker-dot"></span>Tracker Calibrated`;
+  wrapper.appendChild(tracker);
+
+  const veil = document.createElement("div");
+  veil.className = "intro-transition-veil";
+  wrapper.appendChild(veil);
 }
 
 // --- Placeholder ---

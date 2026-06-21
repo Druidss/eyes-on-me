@@ -71,10 +71,24 @@ export interface FormField {
   max?: number;
 }
 
+export interface IntroTactic {
+  text: string;
+  danger?: boolean;
+}
+
+export interface IntroSection {
+  num: string;
+  title: string;
+  alert?: boolean;
+  body?: string;
+  tactics?: IntroTactic[];
+}
+
 export interface FlowStep {
   id: string;
   type:
     | "hero"
+    | "intro"
     | "info"
     | "consent"
     | "form"
@@ -93,6 +107,14 @@ export interface FlowStep {
   fields?: FormField[];
   condition?: string;
   questionnaire_id?: string;
+  // Intro (mission briefing) step fields
+  class_tag?: string;
+  class_meta?: string;
+  file_number?: string;
+  sections?: IntroSection[];
+  order_text?: string;
+  agent_name?: string;
+  agent_clearance?: string;
 }
 
 export interface Flow {

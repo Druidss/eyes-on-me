@@ -13,6 +13,7 @@ import { ConversationStepController } from "./ConversationStepController.js";
 import { getRoundForStep } from "./assignment.js";
 import {
   renderHeroStep,
+  renderIntroStep,
   renderInfoStep,
   renderConsentStep,
   renderFormStep,
@@ -166,6 +167,9 @@ export class StudyFlow {
     switch (step.type) {
       case "hero":
         renderHeroStep(wrapper, step, callbacks);
+        break;
+      case "intro":
+        renderIntroStep(wrapper, step, callbacks);
         break;
       case "info":
         renderInfoStep(wrapper, step, callbacks);

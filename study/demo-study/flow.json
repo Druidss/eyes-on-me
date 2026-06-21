@@ -7,7 +7,53 @@
       "tagline": "A Voice Interrogation Game",
       "button_label": "Start Game",
       "footer": "Harbor City · 1949",
-      "bg_image": "assets/scene-start-bg.png"
+      "bg_image": "assets/scene-menu-bg.png"
+    },
+    {
+      "id": "intro",
+      "type": "intro",
+      "title": "Eyes On Me",
+      "tagline": "Velorian Ministry · Office of Director Vane",
+      "class_tag": "Top Secret",
+      "class_meta": "Eyes Only",
+      "file_number": "VM-0619",
+      "bg_image": "assets/scene-intro-bg.png",
+      "button_label": "Begin Mission",
+      "agent_name": "Agent Miller",
+      "agent_clearance": "Clearance A-1",
+      "order_text": "Stay calm. Do not get caught.",
+      "sections": [
+        {
+          "num": "01",
+          "title": "Who You Are",
+          "body": "You are Agent Miller, an undercover operative. You have successfully infiltrated the Velorian Ministry."
+        },
+        {
+          "num": "02",
+          "title": "The Situation",
+          "body": "You are in the office of Director Vane for a routine security review. He is cold, highly suspicious, and watching you closely."
+        },
+        {
+          "num": "03",
+          "title": "Your Objective",
+          "body": "Gather as much intelligence as possible for your post-briefing evaluation.",
+          "tactics": [
+            { "text": "Listen. Memorize names, dates, and other clues Vane mentions." },
+            { "text": "Observe. Scan the room for visual clues." }
+          ]
+        },
+        {
+          "num": "04",
+          "title": "How to Survive — Suspicion",
+          "alert": true,
+          "body": "Scanning the room while Vane makes direct eye contact raises his suspicion. If suspicion peaks, you will be arrested.",
+          "tactics": [
+            { "text": "Avoid detection. Don't look around while he's watching you.", "danger": true },
+            { "text": "Safe windows. Look around only when Vane is turned away or distracted." },
+            { "text": "Return eye contact. Look back at Vane the instant he turns to face you." }
+          ]
+        }
+      ]
     },
     {
       "id": "calibration",
