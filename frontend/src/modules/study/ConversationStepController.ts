@@ -1013,6 +1013,9 @@ export class ConversationStepController {
       }
       if (p1SuspicionSnapshot?.changed) {
         this.p1SuspicionAudio?.playForState(p1SuspicionSnapshot.state);
+        if (p1SuspicionSnapshot.state === "confrontational") {
+          this.viewer?.avatar?.playAngryReaction().catch(() => {});
+        }
         this.reporter.emit("spy.suspicion_audio_triggered", {
           state: p1SuspicionSnapshot.state,
           value: p1SuspicionSnapshot.value,
