@@ -1129,7 +1129,7 @@ body:has([data-step-type="intro"]) {
   z-index: 3;
   pointer-events: none;
   transition: background var(--transition-fast), color var(--transition-fast);
-  display: flex;
+  display: none !important; /* timer hidden -Tian */
   align-items: baseline;
   gap: 2px;
 }
@@ -1188,7 +1188,7 @@ body:has([data-step-type="intro"]) {
   bottom: 24px;
   transform: translateX(-50%);
   width: min(86%, 720px);
-  display: flex;
+  display: none !important; /* subtitle bar hidden -Tian */
   flex-direction: column;
   align-items: center;
   gap: 4px;
@@ -1221,7 +1221,7 @@ body:has([data-step-type="intro"]) {
   top: 8px;
   right: 8px;
   width: 160px;
-  display: flex;
+  display: none !important; /* suspicion meter should always be hidden -Tian */
   flex-direction: column;
   gap: 4px;
   padding: 8px 12px;
