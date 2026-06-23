@@ -18,7 +18,7 @@ import type { BackendReporter } from "../telemetry/BackendReporter.js";
 import type { RealtimeClient } from "../realtime/RealtimeClient.js";
 import { renderVoiceBar } from "./renderVoiceBar.js";
 // P1 overlay controller for zone visualization during development
-import { DemoControllerP1 } from "../spy/DemoControllerP1.js";
+import { GazeController } from "../spy/GazeController.js";
 // P1 zone-tracking logic, driven by the original gaze provider pipeline
 import { GazeZoneTracker } from "../spy/GazeZoneTracker.js";
 // P1 suspicion metric
@@ -30,6 +30,8 @@ import { TimelineController } from "./TimelineController.js";
 import { TimelineAudioPlayer, createPlayAudioActionHandler } from "./timelineActions/playAudioAction.js";
 // Generic branching dialogue script engine (audio + subtitle, advances on audio end)
 import { DialogueSequencer } from "./DialogueSequencer.js";
+// P1 rapport metric
+import { RapportMetric } from "../spy/RapportMetric.js";
 
 /**
  * Manages the conversation step lifecycle: 3D viewer, gaze tracking,
@@ -47,14 +49,17 @@ export class ConversationStepController {
   private realtimeClient: RealtimeClient | null = null;
   private remoteStream: MediaStream | null = null;
   private lipSyncAttached = false;
+  private gazeInvalidStartedAtMs: number | null = null;
   // P1 demo overlay instance
-  private p1DemoController: DemoControllerP1 | null = null;
+  private p1GazeController: GazeController | null = null;
   // P1 zone-tracking logic instance for zone, dwell, and fixation state.
   private p1ZoneTracker: GazeZoneTracker | null = null;
   // P1 suspicion-metric instance
   private p1SuspicionMetric: SuspicionMetric | null = null;
   // P1 suspicion → audio cue controller
   private p1SuspicionAudio: SuspicionAudioController | null = null;
+  // P1 rapport-metric instance
+  private p1RapportMetric: RapportMetric | null = null;
 
   private stepId: string | undefined;
   private condition: string | undefined;
@@ -63,6 +68,9 @@ export class ConversationStepController {
   private readonly runtime: RuntimeInfo;
   private readonly sessionId: string;
   private readonly reporter: BackendReporter;
+  // blur tune
+  private readonly visionBlurGraceMs = 60;
+  private readonly visionBlurFullMs = 150;
 
   // Timer state (ported from P2 branch)
   private timerIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -314,12 +322,14 @@ export class ConversationStepController {
     }
 
     if (p1DemoMode) {
-      this.p1DemoController = new DemoControllerP1();
+      this.p1GazeController = new GazeController();
       this.p1SuspicionAudio = new SuspicionAudioController({
         resolveUrl: (src) => `${import.meta.env.BASE_URL}${src}`,
       });
-      this.p1DemoController.attachToScene(viewerContainer, {
-        title: "P1 Demo Controller",
+      // P1 rapport
+      this.p1RapportMetric = new RapportMetric();
+      this.p1GazeController.attachToScene(viewerContainer, {
+        title: "P1 Gaze Controller",
         showOverlay: true,
       });
     }
@@ -414,12 +424,13 @@ export class ConversationStepController {
 
     // P1 temporary integration cleanup:
     // remove the development-only overlay when leaving the conversation step.
-    this.p1DemoController?.destroy();
-    this.p1DemoController = null;
+    this.p1GazeController?.destroy();
+    this.p1GazeController = null;
     this.p1ZoneTracker = null;
     this.p1SuspicionMetric = null;
     this.p1SuspicionAudio?.dispose();
     this.p1SuspicionAudio = null;
+    this.p1RapportMetric = null;
     //_________________________________________________________________
 
     this.suspicionMeterContainerEl = null;
@@ -436,6 +447,7 @@ export class ConversationStepController {
     this.gazeFSM?.reset();
     this.gazeFSM = null;
     this.lookAtSmoother = null;
+    this.gazeInvalidStartedAtMs = null;
 
     if (this.viewer) {
       this.viewer.destroy();
@@ -765,6 +777,7 @@ export class ConversationStepController {
 
     const sourceLabel = this.gazeProviderType === "backend" ? "backend" : "mouse";
     debugLabel.textContent = `User Gaze: ${sourceLabel}`;
+    const p1DemoEnabled = new URLSearchParams(window.location.search).has("p1demo");
 
     // Live gaze cursor overlay
     const gazeCursor = document.createElement("div");
@@ -772,12 +785,13 @@ export class ConversationStepController {
     container.appendChild(gazeCursor);
 
     // Only create FSM for gazeaware conditions
-    if (condition === "gazeaware") {
+    if (condition === "gazeaware" || p1DemoEnabled) {
       const profile = this.config.gaze_profiles.profiles["default"];
       if (profile) {
         this.gazeFSM = new GazeAwarenessMachine(profile);
       }
     }
+    //_____________________________________________________________
 
     let prevHit: boolean | null = null;
     let prevFsmState: string | null = null;
@@ -822,12 +836,16 @@ export class ConversationStepController {
           });
         }
         prevBackendValid = valid;
+        this.p1GazeController?.setVisionBlurAmount(this.updateVisionBlurAmount(now, valid));
 
         if (!valid) {
           debugDot.style.background = debugWarningColor;
           debugLabel.textContent = "User Gaze: backend (no data)";
           return;
         }
+      } else {
+        this.gazeInvalidStartedAtMs = null;
+        this.p1GazeController?.setVisionBlurAmount(0);
       }
 
       // BackendGazeProvider delivers [0,1] coordinates normalised to the
@@ -867,46 +885,8 @@ export class ConversationStepController {
 
       // P1: Zone-tracking integration
       // feed the original kit's gaze provider output + face-hit result into
-      // the P1 tracker, then push the live snapshot into the P1 overlay HUD.
+      // the P1 tracker, then use the live snapshot in the P1 gameplay metrics.
       const p1Snapshot = this.p1ZoneTracker?.update(gaze, now, isHit);
-      const p1SuspicionSnapshot = p1Snapshot
-        ? this.p1SuspicionMetric?.update({
-            zoneSnapshot: p1Snapshot,
-            nowMs: now,
-            // Dialogue safe-window lines (NPC looking away) suppress
-            // suspicion gain for their duration; 1 = no effect.
-            suspicionMultiplier: this.dialogueSuspicionMultiplier,
-          })
-        : null;
-      if (p1Snapshot) {
-        this.p1DemoController?.updateDebugSnapshot({
-          activeZone: p1Snapshot.active_zone,
-          dwellMs: p1Snapshot.active_zone.dwell_ms,
-          fixationCount: p1Snapshot.fixation.total_count,
-          perZoneCounts: p1Snapshot.fixation.per_zone_counts,
-          suspicionValue: p1SuspicionSnapshot?.value,
-          suspicionState: p1SuspicionSnapshot?.state,
-        });
-      }
-      // Suspicion meter UI: update every frame so the bar tracks the
-      // continuously-changing value smoothly, not just on state
-      // transitions (unlike the debug HUD / audio cue below).
-      if (p1SuspicionSnapshot) {
-        this.updateSuspicionMeterUI(p1SuspicionSnapshot.value, p1SuspicionSnapshot.state);
-      }
-      // Suspicion → audio cue: only fire on state transitions (not every
-      // frame). playForState() is itself a no-op if the state hasn't
-      // changed, but gating on `.changed` here keeps the telemetry event
-      // from firing redundantly and makes the trigger condition explicit.
-      if (p1SuspicionSnapshot?.changed) {
-        this.p1SuspicionAudio?.playForState(p1SuspicionSnapshot.state);
-        this.reporter.emit("spy.suspicion_audio_triggered", {
-          state: p1SuspicionSnapshot.state,
-          value: p1SuspicionSnapshot.value,
-          condition: this.condition ?? null,
-          step_id: this.stepId ?? null,
-        });
-      }
       //______________________________________________________________________
 
       // Gaze cursor intersection feedback
@@ -995,6 +975,53 @@ export class ConversationStepController {
       const avatarEyeContact = mgTracker.isAvatarEyeContact(eyeYaw, eyePitch);
       const mutualGaze = mgTracker.isMutualGaze(avatarEyeContact, isHit);
 
+      // P1: Rapport/suspicion metric integration
+      // derive rapport from the original eye-contact signals first, then let
+      // suspicion consume the rapport multiplier before rendering both metrics.
+      const p1RapportSnapshot = this.p1RapportMetric?.update({
+        nowMs: now,
+        gazeState: this.gazeFSM?.state ?? "baseline",
+        mutualGaze,
+        avatarEyeContact,
+        userFaceIntersection: isHit,
+        activeZone: p1Snapshot?.active_zone ?? null,
+      });
+      const p1SuspicionSnapshot = p1Snapshot
+        ? this.p1SuspicionMetric?.update({
+            zoneSnapshot: p1Snapshot,
+            nowMs: now,
+            suspicionMultiplier:
+              (p1RapportSnapshot?.suspicion_multiplier ?? 1) * this.dialogueSuspicionMultiplier,
+          })
+        : null;
+      if (p1Snapshot) {
+        this.p1GazeController?.updateDebugSnapshot({
+          activeZone: p1Snapshot.active_zone,
+          dwellMs: p1Snapshot.active_zone.dwell_ms,
+          fixationCount: p1Snapshot.fixation.total_count,
+          perZoneCounts: p1Snapshot.fixation.per_zone_counts,
+          eyeContactState: this.gazeFSM?.state ?? "baseline",
+          suspicionValue: p1SuspicionSnapshot?.value,
+          suspicionState: p1SuspicionSnapshot?.state,
+          rapportValue: p1RapportSnapshot?.value,
+          rapportBand: p1RapportSnapshot?.band,
+          rapportSuspicionMultiplier: p1RapportSnapshot?.suspicion_multiplier,
+        });
+      }
+      if (p1SuspicionSnapshot) {
+        this.updateSuspicionMeterUI(p1SuspicionSnapshot.value, p1SuspicionSnapshot.state);
+      }
+      if (p1SuspicionSnapshot?.changed) {
+        this.p1SuspicionAudio?.playForState(p1SuspicionSnapshot.state);
+        this.reporter.emit("spy.suspicion_audio_triggered", {
+          state: p1SuspicionSnapshot.state,
+          value: p1SuspicionSnapshot.value,
+          condition: this.condition ?? null,
+          step_id: this.stepId ?? null,
+        });
+      }
+      //________________________________________________________________
+
       // Debug labels
       mgLabel.textContent = mutualGaze
         ? "Gaze State: mutual gaze"
@@ -1027,6 +1054,30 @@ export class ConversationStepController {
     };
 
     this.gazeLoopId = requestAnimationFrame(loop);
+  }
+
+  private updateVisionBlurAmount(nowMs: number, gazeValid: boolean): number {
+    if (gazeValid) {
+      this.gazeInvalidStartedAtMs = null;
+      return 0;
+    }
+
+    if (this.gazeInvalidStartedAtMs === null) {
+      this.gazeInvalidStartedAtMs = nowMs;
+      return 0;
+    }
+
+    const invalidDurationMs = nowMs - this.gazeInvalidStartedAtMs;
+    if (invalidDurationMs <= this.visionBlurGraceMs) {
+      return 0;
+    }
+
+    const normalized = Math.min(
+      1,
+      (invalidDurationMs - this.visionBlurGraceMs)
+      / Math.max(1, this.visionBlurFullMs - this.visionBlurGraceMs),
+    );
+    return normalized * normalized;
   }
 
   /** Sync study context to backend for high-rate Tobii research logging. */

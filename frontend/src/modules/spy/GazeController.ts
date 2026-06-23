@@ -1,13 +1,15 @@
 import { BACKGROUND_ZONE, GAZE_ZONES } from "./gazeZones.js";
+import type { GazeState } from "../gaze/GazeAwarenessMachine.js";
 import type {
   ActiveSpyZone,
   RectGazeZone,
+  SuspicionState,
   SpyZoneId,
   SpyZoneKind,
 } from "./types.js";
 
 //optional settings you can pass when rendering the controller
-export interface DemoControllerP1Options {
+export interface GazeControllerOptions {
   title?: string;
   backgroundUrl?: string;
   zones?: RectGazeZone[];
@@ -18,8 +20,10 @@ export interface DemoControllerP1Options {
 
 
 // controller
-export class DemoControllerP1 {
+export class GazeController {
   private overlay: HTMLDivElement | null = null;
+  private visionBlurOverlay: HTMLDivElement | null = null;
+  private suspicionVignette: HTMLDivElement | null = null;
   private hud: HTMLDivElement | null = null;
   private zoneElements = new Map<SpyZoneId, HTMLDivElement>();
   private zones: RectGazeZone[] = GAZE_ZONES;
@@ -27,7 +31,7 @@ export class DemoControllerP1 {
 
 
   // ConversationStepController calls this to attach the overlay to the existing scene
-  attachToScene(scene: HTMLElement, options: DemoControllerP1Options = {}): void {
+  attachToScene(scene: HTMLElement, options: GazeControllerOptions = {}): void {
     this.detachSceneArtifacts();
 
     this.zones = options.zones ?? this.zones ?? GAZE_ZONES;
@@ -40,6 +44,28 @@ export class DemoControllerP1 {
     overlay.style.display = options.showOverlay === false ? "none" : "block";
     overlay.style.zIndex = "2";
     scene.appendChild(overlay);
+
+    const visionBlurOverlay = document.createElement("div");
+    visionBlurOverlay.style.position = "absolute";
+    visionBlurOverlay.style.inset = "0";
+    visionBlurOverlay.style.pointerEvents = "none";
+    visionBlurOverlay.style.opacity = "0";
+    visionBlurOverlay.style.zIndex = "2";
+    visionBlurOverlay.style.transition = "opacity 180ms ease-out, backdrop-filter 180ms ease-out, background 180ms ease-out";
+    visionBlurOverlay.style.backdropFilter = "blur(0px)";
+    scene.appendChild(visionBlurOverlay);
+
+    // suspicion vignette
+    const suspicionVignette = document.createElement("div");
+    suspicionVignette.style.position = "absolute";
+    suspicionVignette.style.inset = "0";
+    suspicionVignette.style.pointerEvents = "none";
+    suspicionVignette.style.opacity = "0";
+    suspicionVignette.style.zIndex = "2";
+    suspicionVignette.style.transition = "opacity 180ms ease-out, background 220ms ease-out";
+    suspicionVignette.style.background = "radial-gradient(circle at center, rgba(0, 0, 0, 0) 42%, rgba(140, 0, 0, 0.18) 68%, rgba(125, 0, 0, 0.48) 84%, rgba(125, 0, 0, 0.82) 100%)";
+    scene.appendChild(suspicionVignette);
+
     this.renderZones(overlay, this.zones);
 
     // HUD
@@ -59,17 +85,25 @@ export class DemoControllerP1 {
     scene.appendChild(hud);
 
     this.overlay = overlay;
+    this.visionBlurOverlay = visionBlurOverlay;
+    this.suspicionVignette = suspicionVignette;
     this.hud = hud;
 
     this.setActiveZone(BACKGROUND_ZONE.id);
+    this.setSuspicionVignette({
+      intensity: 0,
+      color: "rgba(140, 0, 0, 1)",
+    });
     this.setHudLines([
       `Zones: ${this.zones.length} evidence`,
       `Active: ${BACKGROUND_ZONE.label}`,
       "Dwell: -",
       "Fixations: -",
       "Per-zone: -",
+      "Eye-contact: -",
       "Suspicion: -",
       "Rapport: -",
+      "Rapport x Suspicion: -",
     ]);
   }
 
@@ -100,6 +134,16 @@ export class DemoControllerP1 {
       .join("");
   }
 
+  // blur visual
+  setVisionBlurAmount(amount: number): void {
+    if (!this.visionBlurOverlay) return;
+
+    const clamped = Math.min(1, Math.max(0, amount));
+    this.visionBlurOverlay.style.opacity = clamped.toFixed(1);
+    this.visionBlurOverlay.style.backdropFilter = `blur(${(clamped * 7).toFixed(2)}px)`;
+    this.visionBlurOverlay.style.background = `rgba(8, 12, 18, ${(clamped * 0.18).toFixed(3)})`;
+  }
+
 
   // update the overlay UI and HUD
   updateDebugSnapshot(snapshot: {
@@ -107,10 +151,12 @@ export class DemoControllerP1 {
     dwellMs?: number;
     fixationCount?: number;
     perZoneCounts?: Partial<Record<SpyZoneId, number>>;
+    eyeContactState?: GazeState | string;
     suspicionValue?: number;
     suspicionState?: string;
     rapportValue?: number;
     rapportBand?: string;
+    rapportSuspicionMultiplier?: number;
   }): void {
     const activeZone = snapshot.activeZone;
     if (activeZone) {
@@ -121,6 +167,7 @@ export class DemoControllerP1 {
     const dwellText = snapshot.dwellMs !== undefined ? `${Math.round(snapshot.dwellMs)} ms` : "-";
     const fixationsText = snapshot.fixationCount !== undefined ? String(snapshot.fixationCount) : "-";
     const perZoneText = formatPerZoneCounts(snapshot.perZoneCounts, this.zones);
+    const eyeContactText = snapshot.eyeContactState ?? "-";
     const suspicionText =
       snapshot.suspicionValue !== undefined
         ? `${snapshot.suspicionValue.toFixed(1)}${snapshot.suspicionState ? ` (${snapshot.suspicionState})` : ""}`
@@ -129,6 +176,14 @@ export class DemoControllerP1 {
       snapshot.rapportValue !== undefined
         ? `${snapshot.rapportValue.toFixed(1)}${snapshot.rapportBand ? ` (${snapshot.rapportBand})` : ""}`
         : "-";
+    const rapportMultiplierText =
+      snapshot.rapportSuspicionMultiplier !== undefined
+        ? `${snapshot.rapportSuspicionMultiplier.toFixed(2)}x`
+        : "-";
+
+    this.setSuspicionVignette(
+      mapSuspicionToVignette(snapshot.suspicionValue, snapshot.suspicionState),
+    );
 
     this.setHudLines([
       `Zones: ${this.zones.length} evidence`,
@@ -136,8 +191,10 @@ export class DemoControllerP1 {
       `Dwell: ${dwellText}`,
       `Fixations: ${fixationsText}`,
       `Per-zone: ${perZoneText}`,
+      `Eye-contact: ${eyeContactText}`,
       `Suspicion: ${suspicionText}`,
       `Rapport: ${rapportText}`,
+      `Rapport x Suspicion: ${rapportMultiplierText}`,
     ]);
   }
 
@@ -183,9 +240,29 @@ export class DemoControllerP1 {
 
   private detachSceneArtifacts(): void {
     this.overlay?.remove();
+    this.visionBlurOverlay?.remove();
+    this.suspicionVignette?.remove();
     this.hud?.remove();
     this.overlay = null;
+    this.visionBlurOverlay = null;
+    this.suspicionVignette = null;
     this.hud = null;
+  }
+
+  private setSuspicionVignette(vignette: SuspicionVignette): void {
+    if (!this.suspicionVignette) return;
+
+    const clamped = Math.min(1, Math.max(0, vignette.intensity));
+    this.suspicionVignette.style.opacity = clamped.toFixed(3);
+    this.suspicionVignette.style.background = [
+      "radial-gradient(",
+      "circle at center, ",
+      "rgba(0, 0, 0, 0) 42%, ",
+      `${withAlpha(vignette.color, clamped * 0.18)} 68%, `,
+      `${withAlpha(vignette.color, clamped * 0.48)} 84%, `,
+      `${withAlpha(vignette.color, clamped * 0.82)} 100%`,
+      ")",
+    ].join("");
   }
 }
 
@@ -229,4 +306,78 @@ function formatPerZoneCounts(
     .filter((part): part is string => part !== null);
 
   return parts.length > 0 ? parts.join(" | ") : "-";
+}
+
+interface SuspicionVignette {
+  intensity: number;
+  color: string;
+}
+
+function mapSuspicionToVignette(
+  value: number | undefined,
+  state: SuspicionState | string | undefined,
+): SuspicionVignette {
+  if (value === undefined) {
+    return {
+      intensity: 0,
+      color: "rgba(140, 0, 0, 1)",
+    };
+  }
+
+  switch (state) {
+    case "alert":
+      return {
+        intensity: remapSuspicion(value, 45, 65, 0.45, 0.65),
+        color: blendColor(value, 45, 65, [245, 191, 24], [220, 38, 38]),
+      };
+    case "suspicious":
+      return {
+        intensity: remapSuspicion(value, 65, 85, 0.72, 0.88),
+        color: blendColor(value, 65, 85, [220, 38, 38], [153, 27, 27]),
+      };
+    case "confrontational":
+      return {
+        intensity: remapSuspicion(value, 85, 100, 0.92, 1),
+        color: blendColor(value, 85, 100, [153, 27, 27], [127, 29, 29]),
+      };
+    case "relaxed":
+    case "neutral":
+    default:
+      return {
+        intensity: 0,
+        color: "rgba(140, 0, 0, 1)",
+      };
+  }
+}
+
+function remapSuspicion(
+  value: number,
+  start: number,
+  end: number,
+  minIntensity: number,
+  maxIntensity: number,
+): number {
+  if (value <= start) return minIntensity;
+  if (value >= end) return maxIntensity;
+
+  const normalized = (value - start) / (end - start);
+  return minIntensity + normalized * (maxIntensity - minIntensity);
+}
+
+function withAlpha(color: string, alpha: number): string {
+  return color.replace(/,\s*1\)$/, `, ${Math.min(1, Math.max(0, alpha)).toFixed(3)})`);
+}
+
+function blendColor(
+  value: number,
+  start: number,
+  end: number,
+  from: [number, number, number],
+  to: [number, number, number],
+): string {
+  const t = Math.min(1, Math.max(0, (value - start) / Math.max(1, end - start)));
+  const r = Math.round(from[0] + (to[0] - from[0]) * t);
+  const g = Math.round(from[1] + (to[1] - from[1]) * t);
+  const b = Math.round(from[2] + (to[2] - from[2]) * t);
+  return `rgba(${r}, ${g}, ${b}, 1)`;
 }
