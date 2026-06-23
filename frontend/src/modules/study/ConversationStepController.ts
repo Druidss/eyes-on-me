@@ -900,6 +900,10 @@ export class ConversationStepController {
       // from firing redundantly and makes the trigger condition explicit.
       if (p1SuspicionSnapshot?.changed) {
         this.p1SuspicionAudio?.playForState(p1SuspicionSnapshot.state);
+        // Suspicion has peaked — play the angry.vrma reaction once.
+        if (p1SuspicionSnapshot.state === "confrontational") {
+          this.viewer?.avatar?.playAngryReaction().catch(() => {});
+        }
         this.reporter.emit("spy.suspicion_audio_triggered", {
           state: p1SuspicionSnapshot.state,
           value: p1SuspicionSnapshot.value,

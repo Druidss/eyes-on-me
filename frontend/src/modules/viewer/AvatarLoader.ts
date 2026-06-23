@@ -14,6 +14,9 @@ export class AvatarLoader {
 
   private readonly lookAtTarget: THREE.Object3D;
   private _disposed = false;
+  private idleAction: THREE.AnimationAction | null = null;
+  private angryClipPromise: Promise<THREE.AnimationClip | null> | null = null;
+  private angryFinishedListener: ((e: { action: THREE.AnimationAction }) => void) | null = null;
 
   constructor(lookAtTarget: THREE.Object3D) {
     this.lookAtTarget = lookAtTarget;
@@ -135,6 +138,73 @@ export class AvatarLoader {
     const action = this.mixer.clipAction(clip);
     action.timeScale = 0.75;
     action.play();
+    this.idleAction = action;
+  }
+
+  /**
+   * Loads animations/angry.vrma (lazily, once) and returns the built clip.
+   * Reuses createHumanoidTracks the same way as the idle clip, but does
+   * NOT strip the t=0 rotational bias — that correction exists only to
+   * stop yaw drift from accumulating across an infinitely looping idle
+   * clip; a one-shot reaction should keep its authored starting pose.
+   */
+  private loadAngryClip(): Promise<THREE.AnimationClip | null> {
+    if (!this.angryClipPromise) {
+      this.angryClipPromise = (async () => {
+        if (!this.vrm) return null;
+        const url = `${import.meta.env.BASE_URL}animations/angry.vrma`;
+        const vrmAnimation = await loadVRMAnimation(url);
+        if (!vrmAnimation || this._disposed || !this.vrm) return null;
+
+        const tracks = vrmAnimation
+          .createHumanoidTracks(this.vrm)
+          .filter((t) => !t.name.endsWith(".position"));
+        if (tracks.length === 0) return null;
+
+        return new THREE.AnimationClip("angry", vrmAnimation.duration, tracks);
+      })();
+    }
+    return this.angryClipPromise;
+  }
+
+  /**
+   * Plays the angry.vrma reaction once, crossfading out of the idle loop
+   * and back into it when the reaction finishes. No-op if the clip fails
+   * to load or the avatar has since been disposed/replaced.
+   */
+  async playAngryReaction(): Promise<void> {
+    if (!this.mixer || !this.vrm) return;
+    const clip = await this.loadAngryClip();
+    if (!clip || this._disposed || !this.mixer) return;
+
+    const mixer = this.mixer;
+    const idleAction = this.idleAction;
+
+    if (this.angryFinishedListener) {
+      mixer.removeEventListener("finished", this.angryFinishedListener);
+      this.angryFinishedListener = null;
+    }
+
+    const action = mixer.clipAction(clip);
+    action.setLoop(THREE.LoopOnce, 1);
+    action.clampWhenFinished = true;
+    action.reset();
+    action.play();
+
+    if (idleAction) {
+      idleAction.crossFadeTo(action, 0.25, false);
+    }
+
+    const onFinished = (e: { action: THREE.AnimationAction }) => {
+      if (e.action !== action) return;
+      mixer.removeEventListener("finished", onFinished);
+      this.angryFinishedListener = null;
+      if (idleAction && !this._disposed) {
+        action.crossFadeTo(idleAction, 0.4, false);
+      }
+    };
+    this.angryFinishedListener = onFinished;
+    mixer.addEventListener("finished", onFinished);
   }
 
   /** Disposes the currently loaded VRM and frees GPU resources. */
