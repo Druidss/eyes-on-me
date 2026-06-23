@@ -98,6 +98,108 @@ class IntroSection(BaseModel):
     tactics: list[IntroTactic] | None = None
 
 
+class TimelineAction(BaseModel):
+    """A single action fired when a TimelineCue triggers.
+
+    `type` is open-ended on purpose — only "play_audio" is implemented
+    today, but the schema does not constrain future action types (e.g.
+    "set_expression", "say_line") to keep this additive.
+    """
+
+    type: str
+    # play_audio fields
+    src: str | None = None
+    volume: float | None = Field(default=None, ge=0, le=1)
+    loop: bool = False
+
+
+class TimelineCue(BaseModel):
+    """A single fixed-time trigger within a conversation step.
+
+    `at_seconds` is measured from when the conversation step's timer
+    starts (avatar ready), matching the same clock as `duration_seconds`.
+    """
+
+    id: str
+    at_seconds: int = Field(ge=0)
+    actions: list[TimelineAction] = Field(min_length=1)
+
+
+# --- Dialogue scripts (branching audio + subtitle scenes) ---
+
+
+class DialogueSafeWindow(BaseModel):
+    """Suspicion gain multiplier applied while a line plays.
+
+    0 fully suppresses gain (e.g. NPC looking away); restored to 1 once
+    the line ends. Caller (frontend) is responsible for applying this —
+    the backend only validates shape.
+    """
+
+    suspicion_multiplier: float = Field(ge=0)
+
+
+class DialogueLineNode(BaseModel):
+    id: str
+    kind: Literal["line"] = "line"
+    audio_src: str
+    text: str
+    speaker: str | None = None
+    direction: str | None = None
+    safe_window: DialogueSafeWindow | None = None
+    next: str | None = None
+
+
+class DialogueBranchNode(BaseModel):
+    id: str
+    kind: Literal["branch"] = "branch"
+    branch: dict[Literal["low", "high"], str]
+
+    @model_validator(mode="after")
+    def _require_both_branch_keys(self) -> DialogueBranchNode:
+        missing = {"low", "high"} - set(self.branch.keys())
+        if missing:
+            raise ValueError(
+                f'branch node "{self.id}" is missing target(s) for: {sorted(missing)}'
+            )
+        return self
+
+
+class DialogueScript(BaseModel):
+    id: str
+    start: str
+    nodes: list[DialogueLineNode | DialogueBranchNode] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _validate_node_refs(self) -> DialogueScript:
+        ids = {n.id for n in self.nodes}
+        if len(ids) != len(self.nodes):
+            raise ValueError(f'dialogue script "{self.id}" has duplicate node ids')
+        if self.start not in ids:
+            raise ValueError(
+                f'dialogue script "{self.id}" start node "{self.start}" not found in nodes'
+            )
+        for n in self.nodes:
+            if isinstance(n, DialogueLineNode) and n.next is not None and n.next not in ids:
+                raise ValueError(
+                    f'dialogue script "{self.id}" node "{n.id}" references missing next node "{n.next}"'
+                )
+            if isinstance(n, DialogueBranchNode):
+                for target in n.branch.values():
+                    if target not in ids:
+                        raise ValueError(
+                            f'dialogue script "{self.id}" branch node "{n.id}" '
+                            f'references missing node "{target}"'
+                        )
+        return self
+
+
+class DialogueScripts(BaseModel):
+    """study/<id>/dialogue_scripts.json — { "scripts": { "<script_id>": DialogueScript } }"""
+
+    scripts: dict[str, DialogueScript] = Field(default_factory=dict)
+
+
 class FlowStep(BaseModel):
     id: str
     type: Literal[
@@ -130,6 +232,9 @@ class FlowStep(BaseModel):
     order_text: str | None = None
     agent_name: str | None = None
     agent_clearance: str | None = None
+    duration_seconds: int | None = Field(default=None, ge=1)
+    timeline: list[TimelineCue] | None = None
+    dialogue_script: str | None = None
 
 
 class Flow(BaseModel):
