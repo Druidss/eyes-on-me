@@ -1,56 +1,5 @@
 {
   "questionnaires": {
-    "round": {
-      "title": "Questionnaire",
-      "instruction": "Please rate the following statements.",
-      "items": [
-        {
-          "id": "q1",
-          "text": "The avatar appeared interested in me.",
-          "type": "likert",
-          "scale_min": 1,
-          "scale_max": 5,
-          "scale_labels": ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
-          "required": true
-        },
-        {
-          "id": "q2",
-          "text": "The avatar appeared to be aware of my presence.",
-          "type": "likert",
-          "scale_min": 1,
-          "scale_max": 5,
-          "scale_labels": ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
-          "required": true
-        },
-        {
-          "id": "q3",
-          "text": "The avatar's gaze behavior appeared natural.",
-          "type": "likert",
-          "scale_min": 1,
-          "scale_max": 5,
-          "scale_labels": ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
-          "required": true
-        },
-        {
-          "id": "q4",
-          "text": "I was satisfied with the interaction overall.",
-          "type": "likert",
-          "scale_min": 1,
-          "scale_max": 5,
-          "scale_labels": ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
-          "required": true
-        },
-        {
-          "id": "q5",
-          "text": "The conversation between me and the avatar worked properly.",
-          "type": "likert",
-          "scale_min": 1,
-          "scale_max": 5,
-          "scale_labels": ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"],
-          "required": true
-        }
-      ]
-    },
     "debriefing": {
       "title": "Recall Report",
       "instruction": "Before HQ closes the file, confirm what you saw and heard. Answer from memory — the record is graded on accuracy.",
@@ -59,7 +8,7 @@
           "id": "a1",
           "text": "Which specific date was circled on the wall calendar?",
           "type": "choice",
-          "options": ["The 7th", "The 14th", "The 21st", "The 28th"],
+          "options": ["The 7th", "The 14th", "The 21st", "I don't know"],
           "answer": 1,
           "required": true,
           "section_key": "A",
@@ -70,7 +19,7 @@
           "id": "a2",
           "text": "What item was the missing dockworker Nikolai Vance last seen carrying?",
           "type": "choice",
-          "options": ["A black briefcase", "A leather bag", "A brown backpack", "A metal suitcase"],
+          "options": ["A black briefcase", "A leather bag", "A brown backpack", "I don't know"],
           "answer": 1,
           "required": true,
           "section_key": "A"
@@ -79,7 +28,7 @@
           "id": "a3",
           "text": "What color was the stolen keycard mentioned in the newspaper article?",
           "type": "choice",
-          "options": ["Red", "Green", "Blue", "Yellow"],
+          "options": ["Red", "Green", "Blue", "I don't know"],
           "answer": 2,
           "required": true,
           "section_key": "A"
@@ -88,7 +37,7 @@
           "id": "a4",
           "text": "Where was the red X marked on the wall map?",
           "type": "choice",
-          "options": ["Harbor Warehouse No. 5", "Old Embankment No. 12", "Industrial Park No. 8", "South of Train Station"],
+          "options": ["Harbor Warehouse No. 5", "Old Embankment No. 12", "Industrial Park No. 8", "I don't know"],
           "answer": 1,
           "required": true,
           "section_key": "A"
@@ -97,7 +46,7 @@
           "id": "a5",
           "text": "What is the case file number on the desk folder?",
           "type": "choice",
-          "options": ["#A7-12", "#B3-08", "#C5-15", "#D9-20"],
+          "options": ["#A7-12", "#B3-08", "#C5-15", "I don't know"],
           "answer": 0,
           "required": true,
           "section_key": "A"
@@ -106,7 +55,7 @@
           "id": "a6",
           "text": "What phone extension was scribbled on the desk notepad?",
           "type": "choice",
-          "options": ["Ext. 301", "Ext. 402", "Ext. 504", "Ext. 607"],
+          "options": ["Ext. 301", "Ext. 402", "Ext. 504", "I don't know"],
           "answer": 1,
           "required": true,
           "section_key": "A"
@@ -144,7 +93,7 @@
           "id": "b4",
           "text": "Who did Director Vane identify as the rogue contact inside the Ministry?",
           "type": "choice",
-          "options": ["Michael", "Thomas", "James", "Richard"],
+          "options": ["Michael", "Thomas", "James", "I don't know"],
           "answer": 1,
           "required": true,
           "section_key": "B"
@@ -153,7 +102,7 @@
           "id": "b5",
           "text": "What emergency radio frequency or channel did Director Vane mention?",
           "type": "choice",
-          "options": ["Channel 8", "Channel 12", "Channel 16", "Channel 22"],
+          "options": ["Channel 8", "Channel 12", "Channel 16", "I don't know"],
           "answer": 2,
           "required": true,
           "section_key": "B"
@@ -162,7 +111,7 @@
           "id": "b6",
           "text": "What is the secret verbal password for the field agents?",
           "type": "choice",
-          "options": ["Blue Moon", "Red Sky", "Green Light", "Black Wind"],
+          "options": ["Blue Moon", "Red Sky", "Green Light", "I don't know"],
           "answer": 1,
           "required": true,
           "section_key": "B"
@@ -171,7 +120,7 @@
           "id": "c1",
           "text": "What security clearance level does an agent need to transmit on the emergency radio channel?",
           "type": "choice",
-          "options": ["Level 2", "Level 3", "Level 4", "Level 5"],
+          "options": ["Level 2", "Level 3", "Level 4", "I don't know"],
           "answer": 2,
           "required": true,
           "section_key": "C",
@@ -182,7 +131,7 @@
           "id": "c2",
           "text": "What item did Nikolai Vance carry that is required to unlock the main gate at the Old Embankment?",
           "type": "choice",
-          "options": ["Red security card", "Blue keycard", "Metal key bundle", "Electronic access device"],
+          "options": ["Red security card", "Blue keycard", "Metal key bundle", "I don't know"],
           "answer": 1,
           "required": true,
           "section_key": "C"

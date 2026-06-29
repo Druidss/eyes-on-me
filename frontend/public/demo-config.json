@@ -94,7 +94,8 @@
         "id": "condition1",
         "type": "conversation",
         "condition": "baseline",
-        "bg_image": "assets/bg_game.png"
+        "bg_image": "assets/bg_game.png",
+        "dialogue_script": "vane_interrogation"
       },
       {
         "id": "questionnaire1",
@@ -116,87 +117,6 @@
   },
   "questionnaires": {
     "questionnaires": {
-      "round": {
-        "title": "Questionnaire",
-        "instruction": "Please rate the following statements.",
-        "items": [
-          {
-            "id": "q1",
-            "text": "The avatar appeared interested in me.",
-            "type": "likert",
-            "scale_min": 1,
-            "scale_max": 5,
-            "scale_labels": [
-              "Strongly Disagree",
-              "Disagree",
-              "Neutral",
-              "Agree",
-              "Strongly Agree"
-            ],
-            "required": true
-          },
-          {
-            "id": "q2",
-            "text": "The avatar appeared to be aware of my presence.",
-            "type": "likert",
-            "scale_min": 1,
-            "scale_max": 5,
-            "scale_labels": [
-              "Strongly Disagree",
-              "Disagree",
-              "Neutral",
-              "Agree",
-              "Strongly Agree"
-            ],
-            "required": true
-          },
-          {
-            "id": "q3",
-            "text": "The avatar's gaze behavior appeared natural.",
-            "type": "likert",
-            "scale_min": 1,
-            "scale_max": 5,
-            "scale_labels": [
-              "Strongly Disagree",
-              "Disagree",
-              "Neutral",
-              "Agree",
-              "Strongly Agree"
-            ],
-            "required": true
-          },
-          {
-            "id": "q4",
-            "text": "I was satisfied with the interaction overall.",
-            "type": "likert",
-            "scale_min": 1,
-            "scale_max": 5,
-            "scale_labels": [
-              "Strongly Disagree",
-              "Disagree",
-              "Neutral",
-              "Agree",
-              "Strongly Agree"
-            ],
-            "required": true
-          },
-          {
-            "id": "q5",
-            "text": "The conversation between me and the avatar worked properly.",
-            "type": "likert",
-            "scale_min": 1,
-            "scale_max": 5,
-            "scale_labels": [
-              "Strongly Disagree",
-              "Disagree",
-              "Neutral",
-              "Agree",
-              "Strongly Agree"
-            ],
-            "required": true
-          }
-        ]
-      },
       "debriefing": {
         "title": "Recall Report",
         "instruction": "Before HQ closes the file, confirm what you saw and heard. Answer from memory — the record is graded on accuracy.",
@@ -209,7 +129,7 @@
               "The 7th",
               "The 14th",
               "The 21st",
-              "The 28th"
+              "I don't know"
             ],
             "answer": 1,
             "required": true,
@@ -225,7 +145,7 @@
               "A black briefcase",
               "A leather bag",
               "A brown backpack",
-              "A metal suitcase"
+              "I don't know"
             ],
             "answer": 1,
             "required": true,
@@ -239,7 +159,7 @@
               "Red",
               "Green",
               "Blue",
-              "Yellow"
+              "I don't know"
             ],
             "answer": 2,
             "required": true,
@@ -253,7 +173,7 @@
               "Harbor Warehouse No. 5",
               "Old Embankment No. 12",
               "Industrial Park No. 8",
-              "South of Train Station"
+              "I don't know"
             ],
             "answer": 1,
             "required": true,
@@ -267,7 +187,7 @@
               "#A7-12",
               "#B3-08",
               "#C5-15",
-              "#D9-20"
+              "I don't know"
             ],
             "answer": 0,
             "required": true,
@@ -281,7 +201,7 @@
               "Ext. 301",
               "Ext. 402",
               "Ext. 504",
-              "Ext. 607"
+              "I don't know"
             ],
             "answer": 1,
             "required": true,
@@ -339,7 +259,7 @@
               "Michael",
               "Thomas",
               "James",
-              "Richard"
+              "I don't know"
             ],
             "answer": 1,
             "required": true,
@@ -353,7 +273,7 @@
               "Channel 8",
               "Channel 12",
               "Channel 16",
-              "Channel 22"
+              "I don't know"
             ],
             "answer": 2,
             "required": true,
@@ -367,7 +287,7 @@
               "Blue Moon",
               "Red Sky",
               "Green Light",
-              "Black Wind"
+              "I don't know"
             ],
             "answer": 1,
             "required": true,
@@ -381,7 +301,7 @@
               "Level 2",
               "Level 3",
               "Level 4",
-              "Level 5"
+              "I don't know"
             ],
             "answer": 2,
             "required": true,
@@ -397,7 +317,7 @@
               "Red security card",
               "Blue keycard",
               "Metal key bundle",
-              "Electronic access device"
+              "I don't know"
             ],
             "answer": 1,
             "required": true,
@@ -478,8 +398,177 @@
         ],
         "pending_time_ms": 300,
         "mutual_time_ms": 3600,
-        "break_time_ms": 1250,
+        "break_time_ms": 3000,
         "lose_debounce_ms": 200
+      }
+    }
+  },
+  "dialogue_scripts": {
+    "scripts": {
+      "vane_interrogation": {
+        "id": "vane_interrogation",
+        "start": "VANE_01",
+        "nodes": [
+          {
+            "id": "VANE_01",
+            "kind": "line",
+            "audio_src": "audio/script/VANE_01.mp3",
+            "speaker": "Director Vane",
+            "direction": "Vane looks directly at the player. His expression is calm but cold.",
+            "text": "Sit down, Agent Miller. I've been reviewing our internal security protocols. These are tense times in Veloria. Treason is like a disease... silent, until it's too late. But I'm sure you agree.",
+            "next": "VANE_02"
+          },
+          {
+            "id": "VANE_02",
+            "kind": "line",
+            "audio_src": "audio/script/VANE_02.mp3",
+            "speaker": "Director Vane",
+            "text": "We are launching a decisive strike to crush the rebels. This campaign is officially designated as Operation Aurora. It must succeed.",
+            "next": "VANE_03"
+          },
+          {
+            "id": "VANE_03",
+            "kind": "line",
+            "audio_src": "audio/script/VANE_03.mp3",
+            "speaker": "Director Vane",
+            "direction": "Vane looks down. He is no longer looking at the player. [Opportunity 1 - Safe Window]: the player can safely scan the room without increasing suspicion.",
+            "text": "Let me sign these transfer papers first... We cannot afford any bureaucratic delays when the city is on the brink of chaos.",
+            "safe_window": {
+              "suspicion_multiplier": 0
+            },
+            "next": "check_suspicion_1"
+          },
+          {
+            "id": "check_suspicion_1",
+            "kind": "branch",
+            "branch": {
+              "low": "VANE_04.1",
+              "high": "VANE_04.2"
+            }
+          },
+          {
+            "id": "VANE_04.1",
+            "kind": "line",
+            "audio_src": "audio/script/VANE_04.1.mp3",
+            "speaker": "Director Vane",
+            "direction": "Branch 1A: Low Suspicion.",
+            "text": "I'm sharing this setup with you because I need absolute discretion. We have a suspected mole in our communications division. We believe a corrupt officer named Thomas is feeding data to the rebels. Keep your eyes open.",
+            "next": "VANE_05"
+          },
+          {
+            "id": "VANE_04.2",
+            "kind": "line",
+            "audio_src": "audio/script/VANE_04.2.mp3",
+            "speaker": "Director Vane",
+            "direction": "Branch 1B: High Suspicion.",
+            "text": "Miller, you seem preoccupied today. Make sure your head is in the game. We have no room for distractions.",
+            "next": "VANE_05"
+          },
+          {
+            "id": "VANE_05",
+            "kind": "line",
+            "audio_src": "audio/script/VANE_05.mp3",
+            "speaker": "Director Vane",
+            "direction": "Vane leans forward slightly, continuing the briefing.",
+            "text": "Our intelligence confirms the Vanguard has acquired weaponized cargo. They have loaded it onto a civilian freighter named The Hermes. They think they can slip out under the cover of darkness. They are wrong. We raid the harbor at exactly 03:00 AM.",
+            "next": "VANE_06"
+          },
+          {
+            "id": "VANE_06",
+            "kind": "line",
+            "audio_src": "audio/script/VANE_06.mp3",
+            "speaker": "Director Vane",
+            "direction": "Vane sighs, turning his head completely to look at the wall map. [Opportunity 2 - Safe Window]: the player can safely scan the room again.",
+            "text": "Look at the layout of the city... The harbor districts are a maze. A tactical nightmare.",
+            "safe_window": {
+              "suspicion_multiplier": 0
+            },
+            "next": "VANE_07"
+          },
+          {
+            "id": "VANE_07",
+            "kind": "line",
+            "audio_src": "audio/script/VANE_07.mp3",
+            "speaker": "Director Vane",
+            "direction": "Vane mutters to himself while studying the map. The player can safely scan the room during this line, then Vane turns back to face the player at the end.",
+            "text": "The docks at sector four are heavily guarded, but the northern channels... they are completely exposed. If they reach open water, we lose them.",
+            "safe_window": {
+              "suspicion_multiplier": 0
+            },
+            "next": "check_suspicion_2"
+          },
+          {
+            "id": "check_suspicion_2",
+            "kind": "branch",
+            "branch": {
+              "low": "VANE_08.1",
+              "high": "VANE_08.2"
+            }
+          },
+          {
+            "id": "VANE_08.1",
+            "kind": "line",
+            "audio_src": "audio/script/VANE_08.1.mp3",
+            "speaker": "Director Vane",
+            "direction": "Branch 2A: Low Suspicion (player maintained appropriate eye contact).",
+            "text": "Since I can trust you, keep this backup frequency in mind. If our primary comms go dark, and only if you have clearance for Case #A7-12, tune your radio to Channel 16.",
+            "next": "VANE_09"
+          },
+          {
+            "id": "VANE_08.2",
+            "kind": "line",
+            "audio_src": "audio/script/VANE_08.2.mp3",
+            "speaker": "Director Vane",
+            "direction": "Branch 2B: High Suspicion.",
+            "text": "If our primary comms go dark, we will rely on standard localized patrols. I was going to share the emergency backup frequencies with you, but you seem too distracted today to handle sensitive intelligence. Let's stick to the basic protocols.",
+            "next": "VANE_09"
+          },
+          {
+            "id": "VANE_09",
+            "kind": "line",
+            "audio_src": "audio/script/VANE_09.mp3",
+            "speaker": "Director Vane",
+            "direction": "The retro desk phone rings. Vane picks up the receiver, turning his head slightly away.",
+            "text": "Hold that thought, Miller.",
+            "next": "VANE_10"
+          },
+          {
+            "id": "VANE_10",
+            "kind": "line",
+            "audio_src": "audio/script/VANE_10.mp3",
+            "speaker": "Director Vane",
+            "direction": "[Opportunity 3 - Safe Window]: the NPC is holding the phone/looking slightly away — the player's final safe chance to scan the room.",
+            "text": "Yes?... No, I am in a briefing... What? The perimeter guards at the old embankment are complaining about the cold? Tell them to stay alert, the Vanguard is active tonight. Understood, reinforce the guards at sector seven as well. I don't want any surprises... No, I will call you back on the secure line in five minutes. Just get it done.",
+            "safe_window": {
+              "suspicion_multiplier": 0
+            },
+            "next": "check_ending"
+          },
+          {
+            "id": "check_ending",
+            "kind": "branch",
+            "branch": {
+              "low": "VANE_11.1",
+              "high": "VANE_11.2"
+            }
+          },
+          {
+            "id": "VANE_11.1",
+            "kind": "line",
+            "audio_src": "audio/script/VANE_11.1.mp3",
+            "speaker": "Director Vane",
+            "direction": "Ending A: Successful Departure (Suspicion is LOW). Vane hangs up the phone and looks back at the player.",
+            "text": "That was headquarters. The wheels are in motion. If you do need to use that backup frequency we discussed, the secret verbal password is Red Sky to verify your identity. Go back to your desk and prepare your report, Agent Miller. Let us hope, for your sake, that our operation goes flawlessly. You are dismissed."
+          },
+          {
+            "id": "VANE_11.2",
+            "kind": "line",
+            "audio_src": "audio/script/VANE_11.2.mp3",
+            "speaker": "Director Vane",
+            "direction": "Ending B: Arrested (Suspicion is HIGH). Sound of a door slamming open and heavy footsteps.",
+            "text": "Actually, Miller... I cannot let you leave this office. Your nervous behavior today confirms my worst fears. You've been staring at my map and my files since you walked in. Guards! Detain Agent Miller immediately!"
+          }
+        ]
       }
     }
   }

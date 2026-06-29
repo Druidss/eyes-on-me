@@ -6,6 +6,8 @@ export interface QuestionnaireResult {
   questionnaire_id: string;
   answers: QuestionnaireAnswers;
   score?: { correct: number; total: number; percent: number };
+  /** Tester name entered on the quiz page itself (quiz-mode questionnaires only). */
+  participantName?: string;
 }
 
 const CHECK_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg>`;
@@ -23,7 +25,9 @@ export function renderQuestionnaire(
   onSubmit: (result: QuestionnaireResult) => void,
   titleOverride?: string,
 ): void {
-  if (questionnaire.items.some(item => item.answer != null)) {
+  const items = questionnaire.items;
+
+  if (items.some(item => item.answer != null)) {
     renderQuizQuestionnaire(container, questionnaireId, questionnaire, onSubmit, titleOverride);
     return;
   }
@@ -45,13 +49,13 @@ export function renderQuestionnaire(
   form.className = "study-questionnaire";
 
   let i = 0;
-  while (i < questionnaire.items.length) {
-    const item = questionnaire.items[i];
+  while (i < items.length) {
+    const item = items[i];
 
     if (item.type === "likert") {
       const group = [item];
-      while (i + 1 < questionnaire.items.length) {
-        const next = questionnaire.items[i + 1];
+      while (i + 1 < items.length) {
+        const next = items[i + 1];
         if (next.type === "likert" && sameScale(item, next)) {
           group.push(next);
           i++;
@@ -76,7 +80,7 @@ export function renderQuestionnaire(
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
-    const answers = collectAnswers(form, questionnaire.items);
+    const answers = collectAnswers(form, items);
     if (answers === null) return;
     onSubmit({ questionnaire_id: questionnaireId, answers });
   });
@@ -96,7 +100,8 @@ function renderQuizQuestionnaire(
   container.dataset.quizMode = "true";
   container.innerHTML = "";
 
-  const total = questionnaire.items.length;
+  const items = questionnaire.items;
+  const total = items.length;
   const selected = new Map<string, number>(); // item.id → chosen option index
   let graded = false;
 
@@ -139,8 +144,14 @@ function renderQuizQuestionnaire(
     <div class="quiz-eyebrow"><span class="quiz-rule"></span>Field Debriefing &middot; Memory Test<span class="quiz-rule"></span></div>
     <h1 class="quiz-title">${titleOverride ?? questionnaire.title}</h1>
     <p class="quiz-lead">${questionnaire.instruction}</p>
+    <div class="quiz-tester-field">
+      <label for="quizTesterName">Tester Name</label>
+      <input type="text" id="quizTesterName" class="quiz-tester-input" placeholder="Your name" autocomplete="off" required>
+    </div>
   `;
   page.appendChild(hero);
+  const testerNameInput = hero.querySelector<HTMLInputElement>("#quizTesterName")!;
+  testerNameInput.addEventListener("input", updateProgress);
 
   // ── Sections + Questions ──
   const sectionsEl = document.createElement("div");
@@ -148,7 +159,7 @@ function renderQuizQuestionnaire(
   let currentSectionEl: HTMLElement = sectionsEl;
   let globalIndex = 0;
 
-  for (const item of questionnaire.items) {
+  for (const item of items) {
     // New section header
     if (item.section_key && item.section_key !== currentSectionKey) {
       currentSectionKey = item.section_key;
@@ -219,7 +230,7 @@ function renderQuizQuestionnaire(
       <div class="quiz-result-breakdown" id="quizBreakdown"></div>
       <div class="quiz-result-actions">
         <button type="button" class="quiz-btn quiz-btn-ghost" id="quizReviewBtn">Review Answers</button>
-        <button type="button" class="quiz-btn" id="quizContinueBtn">Continue</button>
+        <button type="button" class="quiz-btn" id="quizContinueBtn">Download</button>
       </div>
     </div>
   `;
@@ -233,7 +244,7 @@ function renderQuizQuestionnaire(
     const btn = container.querySelector<HTMLButtonElement>("#quizSubmitBtn");
     if (label) label.textContent = `${answered} / ${total}`;
     if (fill) fill.style.width = `${(answered / total) * 100}%`;
-    if (btn) btn.disabled = answered < total;
+    if (btn) btn.disabled = answered < total || testerNameInput.value.trim() === "";
   }
 
   // ── Option click ──
@@ -255,7 +266,7 @@ function renderQuizQuestionnaire(
     let correctCount = 0;
     const sectionCounts: Record<string, { c: number; t: number; title: string }> = {};
 
-    for (const item of questionnaire.items) {
+    for (const item of items) {
       const sk = item.section_key ?? "—";
       if (!sectionCounts[sk]) sectionCounts[sk] = { c: 0, t: 0, title: item.section_title ?? sk };
       sectionCounts[sk].t++;
@@ -330,7 +341,13 @@ function renderQuizQuestionnaire(
   container.querySelector("#quizContinueBtn")?.addEventListener("click", () => {
     const answers = JSON.parse(resultOverlay.dataset.answers ?? "{}") as QuestionnaireAnswers;
     const score = JSON.parse(resultOverlay.dataset.score ?? "null") as { correct: number; total: number; percent: number } | null;
-    onSubmit({ questionnaire_id: questionnaireId, answers, ...(score ? { score } : {}) });
+    const participantName = testerNameInput.value.trim();
+    onSubmit({
+      questionnaire_id: questionnaireId,
+      answers,
+      ...(score ? { score } : {}),
+      ...(participantName ? { participantName } : {}),
+    });
   });
 }
 

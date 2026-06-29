@@ -22,6 +22,7 @@ import {
   type StepCallbacks,
 } from "./stepRenderers.js";
 import { renderCalibrationStep } from "./CalibrationStepRenderer.js";
+import { buildSessionReportMarkdown, downloadTextFile, slugifyForFilename } from "./sessionReport.js";
 
 /** Fetches the full StudyConfig from the backend. */
 export async function fetchStudyConfig(
@@ -55,6 +56,10 @@ export class StudyFlow {
   private readonly reporter: BackendReporter;
   private conversationController: ConversationStepController | null = null;
   private calibrationCleanup: (() => void) | null = null;
+  // Captured from the tester-name field on the quiz questionnaire page
+  // (QuestionnaireResult.participantName), used in the end-of-session
+  // Markdown report filename/header.
+  private participantName: string | null = null;
 
   /** Maps step index → condition for questionnaire steps that follow a conversation. */
   private readonly stepConditionMap: Map<number, string>;
@@ -212,7 +217,11 @@ export class StudyFlow {
           wrapper, step, this.config,
           (result) => {
             this._results.push(result);
+            if (result.participantName) this.participantName = result.participantName;
             this.emitQuestionnaireSubmittedIfResearch(step, result);
+            if (this.stepIndex === this.config.flow.steps.length - 1) {
+              this.downloadSessionReport();
+            }
             this.advance();
           },
           callbacks,
@@ -238,7 +247,7 @@ export class StudyFlow {
       wrapper, step, this._selectedAvatar, resolvedCondition,
       () => this.advance(),
     );
-    wrapper.appendChild(this.createNextButton());
+    wrapper.appendChild(this.createNextButton("End Game"));
   }
 
   private createNextButton(label?: string): HTMLButtonElement {
@@ -306,6 +315,23 @@ export class StudyFlow {
       })),
       log_mode: this.runtime.log_mode,
     });
+  }
+
+  /**
+   * Builds a Markdown summary of this session's questionnaire results and
+   * triggers a browser download. Called once, right when the final step's
+   * questionnaire is submitted.
+   */
+  private downloadSessionReport(): void {
+    const markdown = buildSessionReportMarkdown({
+      config: this.config,
+      sessionId: this.sessionId,
+      participantName: this.participantName,
+      results: this._results,
+    });
+    const namePart = slugifyForFilename(this.participantName ?? "anonymous");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    downloadTextFile(`eyes-on-me_${namePart}_${stamp}.md`, markdown);
   }
 
   /** Emit form submission (research mode — called via callback). */

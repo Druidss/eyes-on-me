@@ -29,6 +29,7 @@ FRAGMENTS = [
     ("questionnaires", "questionnaires.json"),
     ("prompts", "prompts.json"),
     ("gaze_profiles", "gaze_profiles.json"),
+    ("dialogue_scripts", "dialogue_scripts.json"),
 ]
 
 # Stubs replacing the full Realtime prompt prose (unused in demo mode)
