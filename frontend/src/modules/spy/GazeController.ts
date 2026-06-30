@@ -102,6 +102,7 @@ export class GazeController {
       "Per-zone: -",
       "Eye-contact: -",
       "Suspicion: -",
+      "Overall Suspicion: -",
       "Rapport: -",
       "Rapport x Suspicion: -",
     ]);
@@ -154,6 +155,8 @@ export class GazeController {
     eyeContactState?: GazeState | string;
     suspicionValue?: number;
     suspicionState?: string;
+    overallSuspicionValue?: number;
+    overallSuspicionState?: string;
     rapportValue?: number;
     rapportBand?: string;
     rapportSuspicionMultiplier?: number;
@@ -171,6 +174,10 @@ export class GazeController {
     const suspicionText =
       snapshot.suspicionValue !== undefined
         ? `${snapshot.suspicionValue.toFixed(1)}${snapshot.suspicionState ? ` (${snapshot.suspicionState})` : ""}`
+        : "-";
+    const overallSuspicionText =
+      snapshot.overallSuspicionValue !== undefined
+        ? `${snapshot.overallSuspicionValue.toFixed(1)}${snapshot.overallSuspicionState ? ` (${snapshot.overallSuspicionState})` : ""}`
         : "-";
     const rapportText =
       snapshot.rapportValue !== undefined
@@ -193,6 +200,7 @@ export class GazeController {
       `Per-zone: ${perZoneText}`,
       `Eye-contact: ${eyeContactText}`,
       `Suspicion: ${suspicionText}`,
+      `Overall Suspicion: ${overallSuspicionText}`,
       `Rapport: ${rapportText}`,
       `Rapport x Suspicion: ${rapportMultiplierText}`,
     ]);
