@@ -436,9 +436,9 @@
             "safe_window": {
               "suspicion_multiplier": 0
             },
-            "motion": "look_around",
+            "motion": "thinking",
             "motion_loop": true,
-            "pause_after_ms": 15000,
+            "pause_after_ms": 10000,
             "next": "check_suspicion_1"
           },
           {
@@ -488,7 +488,7 @@
             },
             "motion": "look_around",
             "motion_loop": true,
-            "pause_after_ms": 4000,
+            "pause_after_ms": 1500,
             "next": "VANE_07"
           },
           {
@@ -503,7 +503,7 @@
             },
             "motion": "look_around",
             "motion_loop": true,
-            "pause_after_ms": 4000,
+            "pause_after_ms": 1500,
             "next": "check_suspicion_2"
           },
           {
@@ -539,6 +539,9 @@
             "speaker": "Director Vane",
             "direction": "The retro desk phone rings. Vane picks up the receiver, turning his head slightly away.",
             "text": "Hold that thought, Miller.",
+            "safe_window": {
+              "suspicion_multiplier": 0
+            },
             "motion": "look_around",
             "motion_loop": true,
             "pause_after_ms": 3000,

@@ -19,6 +19,8 @@ export class AvatarLoader {
   private activeAnimationListener: ((e: { action: THREE.AnimationAction }) => void) | null = null;
   private activeAction: THREE.AnimationAction | null = null;
   private activeFreezeTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  public targetBodyRotationY = 0;
+  private currentBodyRotationY = 0;
 
   constructor(lookAtTarget: THREE.Object3D) {
     this.lookAtTarget = lookAtTarget;
@@ -312,6 +314,11 @@ export class AvatarLoader {
   /** Per-frame update — call from the render loop. */
   update(delta: number): void {
     this.mixer?.update(delta);
-    this.vrm?.update(delta);
+    if (this.vrm) {
+      const speed = 1.5; // rotation Y speed (slower, more natural turn)
+      this.currentBodyRotationY += (this.targetBodyRotationY - this.currentBodyRotationY) * Math.min(1, delta * speed);
+      this.vrm.scene.rotation.y = this.currentBodyRotationY;
+      this.vrm.update(delta);
+    }
   }
 }

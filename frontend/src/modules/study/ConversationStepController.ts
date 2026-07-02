@@ -585,23 +585,49 @@ export class ConversationStepController {
 
     this.dialogueAudio.src = `${import.meta.env.BASE_URL}${node.audio_src}`;
 
-    // Trigger custom VRMA motion if configured
-    if (node.motion) {
-      let freezeTimeSec: number | undefined = undefined;
-      if (node.motion === "thinking") {
-        freezeTimeSec = 1.5; // Freeze when looking fully down at papers
-      } else if (node.motion === "look_around") {
-        freezeTimeSec = 1.35; // Freeze when turned fully towards the wall map/phone
-      }
-      this.viewer?.avatar?.playReaction(node.motion, node.motion_loop ?? false, freezeTimeSec).catch((err: unknown) => {
-        console.warn(`[dialogue] motion play failed for "${node.motion}":`, err);
-      });
+    // Initialize suspicion multiplier and body rotation target
+    if (node.id === "VANE_03") {
+      this.dialogueSuspicionMultiplier = 1; // Suspicion increases normally during the spoken part
+    } else if (node.safe_window) {
+      this.dialogueSuspicionMultiplier = node.safe_window.suspicion_multiplier;
     } else {
-      // If no motion is configured for this line, stop any previously active motion
-      this.viewer?.avatar?.stopReaction().catch(() => {});
+      this.dialogueSuspicionMultiplier = 1;
     }
 
+    let bodyRotationY = 0;
+    if (node.id === "VANE_09" || node.id === "VANE_10") {
+      bodyRotationY = 2.4; // Turn partially around to face the phone (137 deg)
+    }
+
+    const playMotion = () => {
+      if (this.viewer?.avatar) {
+        this.viewer.avatar.targetBodyRotationY = bodyRotationY;
+      }
+      // VANE_03 will trigger the look-down motion during the pause, not during the speech
+      if (node.motion && node.id !== "VANE_03") {
+        let freezeTimeSec: number | undefined = undefined;
+        if (node.motion === "thinking") {
+          freezeTimeSec = 1.5; // Freeze when looking fully down at papers
+        } else if (node.motion === "look_around") {
+          freezeTimeSec = 1.35; // Freeze when turned fully towards the wall map/phone
+        }
+        this.viewer?.avatar?.playReaction(node.motion, node.motion_loop ?? false, freezeTimeSec).catch((err: unknown) => {
+          console.warn(`[dialogue] motion play failed for "${node.motion}":`, err);
+        });
+      } else if (!node.motion) {
+        // If no motion is configured for this line, stop any previously active motion
+        this.viewer?.avatar?.stopReaction().catch(() => {});
+      }
+    };
+
     if (node.id === "VANE_09") {
+      // Keep Vane facing the player and normal suspicion active while the phone rings
+      if (this.viewer?.avatar) {
+        this.viewer.avatar.targetBodyRotationY = 0;
+      }
+      this.viewer?.avatar?.stopReaction().catch(() => {});
+      this.dialogueSuspicionMultiplier = 1; // normal suspicion during ringing
+
       const ringAudio = new Audio(`${import.meta.env.BASE_URL}audio/sfx/phone_ring.mp3`);
       ringAudio.play().catch(() => {});
       this.activeSfxAudio = ringAudio;
@@ -615,6 +641,10 @@ export class ConversationStepController {
           const pickupAudio = new Audio(`${import.meta.env.BASE_URL}audio/sfx/phone_pickup.mp3`);
           pickupAudio.play().catch(() => {});
           this.activeSfxAudio = pickupAudio;
+
+          // Turn Vane around, play the motion, and suppress suspicion now that he is looking away
+          playMotion();
+          this.dialogueSuspicionMultiplier = 0;
         }
       }, 3000);
 
@@ -627,6 +657,8 @@ export class ConversationStepController {
         }
       }, 3500);
     } else {
+      // Trigger motion and start speech audio immediately
+      playMotion();
       this.dialogueAudio.play().catch((err: unknown) => {
         console.warn(`[dialogue] play failed for node "${node.id}":`, err);
       });
@@ -676,6 +708,15 @@ export class ConversationStepController {
         const signAudio = new Audio(`${import.meta.env.BASE_URL}audio/sfx/paper_signing.mp3`);
         signAudio.play().catch(() => {});
         this.activeSfxAudio = signAudio;
+
+        // Trigger head-tilt down motion (thinking) during the pause and suppress suspicion
+        if (this.viewer?.avatar) {
+          this.viewer.avatar.targetBodyRotationY = Math.PI; // Turn 180 degrees to face the desk behind him
+          this.viewer.avatar.playReaction("thinking", true, 1.5).catch((err) => {
+            console.warn("[dialogue] VANE_03 pause motion play failed:", err);
+          });
+        }
+        this.dialogueSuspicionMultiplier = 0; // safe window is now active!
       } else if (currentLine.id === "VANE_10") {
         const hangupAudio = new Audio(`${import.meta.env.BASE_URL}audio/sfx/phone_pickup.mp3`);
         hangupAudio.play().catch(() => {});
@@ -698,6 +739,9 @@ export class ConversationStepController {
 
     // Stop any active custom dialogue animation
     this.viewer?.avatar?.stopReaction().catch(() => {});
+    if (this.viewer?.avatar) {
+      this.viewer.avatar.targetBodyRotationY = 0;
+    }
 
     this.reporter.emit("study.dialogue_script_ended", {
       last_node_id: lastNode.id,
@@ -739,6 +783,9 @@ export class ConversationStepController {
     this.dialogueSequencer = null;
     this.dialogueSuspicionMultiplier = 1;
     this.viewer?.avatar?.stopReaction().catch(() => {});
+    if (this.viewer?.avatar) {
+      this.viewer.avatar.targetBodyRotationY = 0;
+    }
   }
 
   private initViewer(
