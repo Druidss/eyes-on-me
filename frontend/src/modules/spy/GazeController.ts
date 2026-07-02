@@ -101,7 +101,7 @@ export class GazeController {
       color: "rgba(140, 0, 0, 1)",
     });
     this.setHudLines([
-      `Zones: ${this.zones.length} evidence`,
+      `Zones: ${this.zones.length} rect zones`,
       `Active: ${BACKGROUND_ZONE.label}`,
       "Dwell: -",
       "Fixations: -",
@@ -199,7 +199,7 @@ export class GazeController {
     );
 
     this.setHudLines([
-      `Zones: ${this.zones.length} evidence`,
+      `Zones: ${this.zones.length} rect zones`,
       `Active: ${zoneLabel}`,
       `Dwell: ${dwellText}`,
       `Fixations: ${fixationsText}`,
@@ -220,7 +220,7 @@ export class GazeController {
     this.zoneElements.clear();
 
     for (const zone of zones) {
-      if (zone.kind !== "evidence") continue;
+      if (zone.kind === "background") continue;
 
       const zoneEl = document.createElement("div");
       zoneEl.style.position = "absolute";
@@ -285,6 +285,8 @@ function colorForZoneKind(kind: SpyZoneKind): string {
   switch (kind) {
     case "officer_face":
       return "rgba(37, 99, 235, 0.9)";
+    case "officer_body":
+      return "rgba(14, 165, 233, 0.9)";
     case "evidence":
       return "rgba(34, 197, 94, 0.9)";
     case "background":

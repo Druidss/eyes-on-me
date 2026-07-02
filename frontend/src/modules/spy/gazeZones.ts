@@ -18,6 +18,7 @@ function rectZone(
 // configure here
 // x, y, width, height -> 0 to 1
 export const GAZE_ZONES: RectGazeZone[] = [
+  rectZone("officer_body", "Officer Body", "officer_body", 0.36, 0.23, 0.275, 0.78),
   rectZone("desk_file", "Desk File", "evidence", 0.7, 0.7, 0.19, 0.3),
   rectZone("note", "Note", "evidence", 0.9, 0.8, 0.1, 0.15),
   rectZone("wall_map", "Wall Map", "evidence", 0.65, 0.0, 0.35, 0.5),

@@ -17,6 +17,7 @@ export interface SuspicionMetricOptions {
   minValue?: number;
   maxValue?: number;
   evidenceDwellGainPerSecond?: number;
+  officerBodyDwellGainPerSecond?: number;
   backgroundDwellGainPerSecond?: number;
   evidenceFixationGain?: number;
   officerFaceDecayPerSecond?: number;
@@ -41,6 +42,7 @@ export class SuspicionMetric {
   private readonly minValue: number;
   private readonly maxValue: number;
   private readonly evidenceDwellGainPerSecond: number;
+  private readonly officerBodyDwellGainPerSecond: number;
   private readonly backgroundDwellGainPerSecond: number;
   private readonly evidenceFixationGain: number;
   private readonly officerFaceDecayPerSecond: number;
@@ -55,6 +57,7 @@ export class SuspicionMetric {
     this.minValue = options.minValue ?? 0;
     this.maxValue = options.maxValue ?? 100;
     this.evidenceDwellGainPerSecond = options.evidenceDwellGainPerSecond ?? 18;
+    this.officerBodyDwellGainPerSecond = options.officerBodyDwellGainPerSecond ?? 2;
     this.backgroundDwellGainPerSecond = options.backgroundDwellGainPerSecond ?? 5;
     this.evidenceFixationGain = options.evidenceFixationGain ?? 8;
     this.officerFaceDecayPerSecond = options.officerFaceDecayPerSecond ?? 7;
@@ -99,6 +102,8 @@ export class SuspicionMetric {
         nextValue += fixationDelta * this.evidenceFixationGain * multiplier;
         this.processedFixationCounts.set(zone.id, currentZoneFixations);
       }
+    } else if (zone.kind === "officer_body") {
+      nextValue += (dtMs / 1000) * this.officerBodyDwellGainPerSecond * multiplier;
     } else if (zone.kind === "officer_face") {
       nextValue -= (dtMs / 1000) * this.officerFaceDecayPerSecond;
     } else {

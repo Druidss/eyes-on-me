@@ -19,12 +19,12 @@ export interface GazeZoneTrackerOptions {
  *
  * Priority order:
  * 1. officer face hit
- * 2. matching evidence zone
+ * 2. matching rect zone
  * 3. background fallback
  */
 
 export class GazeZoneTracker {
-  // store evidence zones the tracker should check
+  // store rect zones the tracker should check
   private readonly zones: RectGazeZone[];
   // store fixation threshold
   private readonly fixationThresholdMs: number;
