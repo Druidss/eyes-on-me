@@ -23,6 +23,8 @@ import { GazeController } from "../spy/GazeController.js";
 import { GazeZoneTracker } from "../spy/GazeZoneTracker.js";
 // P1 suspicion metric
 import { SuspicionMetric } from "../spy/SuspicionMetric.js";
+// P1 overall suspicion metric
+import { OverallSuspicionMetric } from "../spy/OverallSuspicionMetric.js";
 // P1 suspicion → audio cue binding
 import { SuspicionAudioController } from "../spy/SuspicionAudioController.js";
 // Timeline: fixed-time cue scheduler, time-driven (decoupled from gaze/suspicion state)
@@ -56,6 +58,8 @@ export class ConversationStepController {
   private p1ZoneTracker: GazeZoneTracker | null = null;
   // P1 suspicion-metric instance
   private p1SuspicionMetric: SuspicionMetric | null = null;
+  // P1 overall-suspicion metric instance
+  private p1OverallSuspicionMetric: OverallSuspicionMetric | null = null;
   // P1 suspicion → audio cue controller
   private p1SuspicionAudio: SuspicionAudioController | null = null;
   // P1 rapport-metric instance
@@ -176,7 +180,7 @@ export class ConversationStepController {
             // Default to "low" if no suspicion tracking is active for
             // some reason (e.g. misconfigured step) — fails toward the
             // less punitive branch rather than throwing.
-            const isLow = this.p1SuspicionMetric?.isLowSuspicion() ?? true;
+            const isLow = this.p1OverallSuspicionMetric?.isLowSuspicion() ?? true;
             return isLow ? "low" : "high";
           },
         });
@@ -314,6 +318,7 @@ export class ConversationStepController {
       // These two consumers share one instance — there is exactly one
       // suspicion value per conversation step, not one per consumer.
       this.p1SuspicionMetric = new SuspicionMetric();
+      this.p1OverallSuspicionMetric = new OverallSuspicionMetric();
       // The suspicion meter is real game UI, not a debug overlay — show
       // it whenever suspicion is actually being tracked for this step.
       if (this.suspicionMeterContainerEl) {
@@ -428,6 +433,7 @@ export class ConversationStepController {
     this.p1GazeController = null;
     this.p1ZoneTracker = null;
     this.p1SuspicionMetric = null;
+    this.p1OverallSuspicionMetric = null;
     this.p1SuspicionAudio?.dispose();
     this.p1SuspicionAudio = null;
     this.p1RapportMetric = null;
@@ -1029,6 +1035,12 @@ export class ConversationStepController {
               (p1RapportSnapshot?.suspicion_multiplier ?? 1) * this.dialogueSuspicionMultiplier,
           })
         : null;
+      const p1OverallSuspicionSnapshot = p1SuspicionSnapshot
+        ? this.p1OverallSuspicionMetric?.update({
+            momentaryValue: p1SuspicionSnapshot.value,
+            nowMs: now,
+          })
+        : null;
       if (p1Snapshot) {
         this.p1GazeController?.updateDebugSnapshot({
           activeZone: p1Snapshot.active_zone,
@@ -1038,6 +1050,8 @@ export class ConversationStepController {
           eyeContactState: this.gazeFSM?.state ?? "baseline",
           suspicionValue: p1SuspicionSnapshot?.value,
           suspicionState: p1SuspicionSnapshot?.state,
+          overallSuspicionValue: p1OverallSuspicionSnapshot?.value,
+          overallSuspicionState: p1OverallSuspicionSnapshot?.state,
           rapportValue: p1RapportSnapshot?.value,
           rapportBand: p1RapportSnapshot?.band,
           rapportSuspicionMultiplier: p1RapportSnapshot?.suspicion_multiplier,

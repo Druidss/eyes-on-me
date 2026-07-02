@@ -24,7 +24,7 @@ export interface DialogueSequencerCallbacks {
   onSuspicionMultiplierChange: (multiplier: number) => void;
   /**
    * Called at a branch node to resolve which path to take. Typically
-   * backed by `SuspicionMetric.isLowSuspicion()`. The sequencer does not
+   * backed by a gameplay metric such as `OverallSuspicionMetric.isLowSuspicion()`. The sequencer does not
    * read suspicion state itself, keeping it decoupled from the spy
    * module's specific metric implementation.
    */
