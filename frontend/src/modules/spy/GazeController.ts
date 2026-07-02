@@ -14,6 +14,9 @@ export interface GazeControllerOptions {
   backgroundUrl?: string;
   zones?: RectGazeZone[];
   showOverlay?: boolean;
+  showHud?: boolean;
+  showVisionBlur?: boolean;
+  showSuspicionVignette?: boolean;
 }
 
 
@@ -51,6 +54,7 @@ export class GazeController {
     visionBlurOverlay.style.pointerEvents = "none";
     visionBlurOverlay.style.opacity = "0";
     visionBlurOverlay.style.zIndex = "2";
+    visionBlurOverlay.style.display = options.showVisionBlur === false ? "none" : "block";
     visionBlurOverlay.style.transition = "opacity 180ms ease-out, backdrop-filter 180ms ease-out, background 180ms ease-out";
     visionBlurOverlay.style.backdropFilter = "blur(0px)";
     scene.appendChild(visionBlurOverlay);
@@ -62,6 +66,7 @@ export class GazeController {
     suspicionVignette.style.pointerEvents = "none";
     suspicionVignette.style.opacity = "0";
     suspicionVignette.style.zIndex = "2";
+    suspicionVignette.style.display = options.showSuspicionVignette === false ? "none" : "block";
     suspicionVignette.style.transition = "opacity 180ms ease-out, background 220ms ease-out";
     suspicionVignette.style.background = "radial-gradient(circle at center, rgba(0, 0, 0, 0) 42%, rgba(140, 0, 0, 0.18) 68%, rgba(125, 0, 0, 0.48) 84%, rgba(125, 0, 0, 0.82) 100%)";
     scene.appendChild(suspicionVignette);
@@ -82,6 +87,7 @@ export class GazeController {
     hud.style.fontFamily = "'IBM Plex Sans', system-ui, sans-serif";
     hud.style.minWidth = "220px";
     hud.style.zIndex = "3";
+    hud.style.display = options.showHud === false ? "none" : "block";
     scene.appendChild(hud);
 
     this.overlay = overlay;
@@ -95,13 +101,14 @@ export class GazeController {
       color: "rgba(140, 0, 0, 1)",
     });
     this.setHudLines([
-      `Zones: ${this.zones.length} evidence`,
+      `Zones: ${this.zones.length} rect zones`,
       `Active: ${BACKGROUND_ZONE.label}`,
       "Dwell: -",
       "Fixations: -",
       "Per-zone: -",
       "Eye-contact: -",
       "Suspicion: -",
+      "Overall Suspicion: -",
       "Rapport: -",
       "Rapport x Suspicion: -",
     ]);
@@ -154,6 +161,8 @@ export class GazeController {
     eyeContactState?: GazeState | string;
     suspicionValue?: number;
     suspicionState?: string;
+    overallSuspicionValue?: number;
+    overallSuspicionState?: string;
     rapportValue?: number;
     rapportBand?: string;
     rapportSuspicionMultiplier?: number;
@@ -172,6 +181,10 @@ export class GazeController {
       snapshot.suspicionValue !== undefined
         ? `${snapshot.suspicionValue.toFixed(1)}${snapshot.suspicionState ? ` (${snapshot.suspicionState})` : ""}`
         : "-";
+    const overallSuspicionText =
+      snapshot.overallSuspicionValue !== undefined
+        ? `${snapshot.overallSuspicionValue.toFixed(1)}${snapshot.overallSuspicionState ? ` (${snapshot.overallSuspicionState})` : ""}`
+        : "-";
     const rapportText =
       snapshot.rapportValue !== undefined
         ? `${snapshot.rapportValue.toFixed(1)}${snapshot.rapportBand ? ` (${snapshot.rapportBand})` : ""}`
@@ -186,13 +199,14 @@ export class GazeController {
     );
 
     this.setHudLines([
-      `Zones: ${this.zones.length} evidence`,
+      `Zones: ${this.zones.length} rect zones`,
       `Active: ${zoneLabel}`,
       `Dwell: ${dwellText}`,
       `Fixations: ${fixationsText}`,
       `Per-zone: ${perZoneText}`,
       `Eye-contact: ${eyeContactText}`,
       `Suspicion: ${suspicionText}`,
+      `Overall Suspicion: ${overallSuspicionText}`,
       `Rapport: ${rapportText}`,
       `Rapport x Suspicion: ${rapportMultiplierText}`,
     ]);
@@ -206,7 +220,7 @@ export class GazeController {
     this.zoneElements.clear();
 
     for (const zone of zones) {
-      if (zone.kind !== "evidence") continue;
+      if (zone.kind === "background") continue;
 
       const zoneEl = document.createElement("div");
       zoneEl.style.position = "absolute";
@@ -271,6 +285,8 @@ function colorForZoneKind(kind: SpyZoneKind): string {
   switch (kind) {
     case "officer_face":
       return "rgba(37, 99, 235, 0.9)";
+    case "officer_body":
+      return "rgba(14, 165, 233, 0.9)";
     case "evidence":
       return "rgba(34, 197, 94, 0.9)";
     case "background":

@@ -23,6 +23,8 @@ import { GazeController } from "../spy/GazeController.js";
 import { GazeZoneTracker } from "../spy/GazeZoneTracker.js";
 // P1 suspicion metric
 import { SuspicionMetric } from "../spy/SuspicionMetric.js";
+// P1 overall suspicion metric
+import { OverallSuspicionMetric } from "../spy/OverallSuspicionMetric.js";
 // P1 suspicion → audio cue binding
 import { SuspicionAudioController } from "../spy/SuspicionAudioController.js";
 // Timeline: fixed-time cue scheduler, time-driven (decoupled from gaze/suspicion state)
@@ -50,12 +52,14 @@ export class ConversationStepController {
   private remoteStream: MediaStream | null = null;
   private lipSyncAttached = false;
   private gazeInvalidStartedAtMs: number | null = null;
-  // P1 demo overlay instance
+  // P1 gaze/gameplay controller instance
   private p1GazeController: GazeController | null = null;
   // P1 zone-tracking logic instance for zone, dwell, and fixation state.
   private p1ZoneTracker: GazeZoneTracker | null = null;
   // P1 suspicion-metric instance
   private p1SuspicionMetric: SuspicionMetric | null = null;
+  // P1 overall-suspicion metric instance
+  private p1OverallSuspicionMetric: OverallSuspicionMetric | null = null;
   // P1 suspicion → audio cue controller
   private p1SuspicionAudio: SuspicionAudioController | null = null;
   // P1 rapport-metric instance
@@ -179,7 +183,7 @@ export class ConversationStepController {
             // Default to "low" if no suspicion tracking is active for
             // some reason (e.g. misconfigured step) — fails toward the
             // less punitive branch rather than throwing.
-            const isLow = this.p1SuspicionMetric?.isLowSuspicion() ?? true;
+            const isLow = this.p1OverallSuspicionMetric?.isLowSuspicion() ?? true;
             return isLow ? "low" : "high";
           },
         });
@@ -308,33 +312,29 @@ export class ConversationStepController {
     // when ?p1demo is present, keep the normal study conversation scene
     // but attach the P1 zone overlay on top of the existing viewer container.
     const p1DemoMode = new URLSearchParams(window.location.search).has("p1demo");
-    const needsSuspicionTracking = p1DemoMode || step.dialogue_script != null;
 
-    if (needsSuspicionTracking) {
-      this.p1ZoneTracker = new GazeZoneTracker();
-      // Suspicion metric: drives both the P1 debug HUD (when p1demo is set)
-      // and dialogue script branch checks (when dialogue_script is set).
-      // These two consumers share one instance — there is exactly one
-      // suspicion value per conversation step, not one per consumer.
-      this.p1SuspicionMetric = new SuspicionMetric();
-      // The suspicion meter is real game UI, not a debug overlay — show
-      // it whenever suspicion is actually being tracked for this step.
-      if (this.suspicionMeterContainerEl) {
-        this.suspicionMeterContainerEl.style.display = "flex";
-      }
-    }
+    this.p1ZoneTracker = new GazeZoneTracker();
+    // Suspicion metric: drives the gameplay feedback, branch checks,
+    // and optional debug HUD. There is exactly one suspicion value per
+    // conversation step, not one per consumer.
+    this.p1SuspicionMetric = new SuspicionMetric();
+    this.p1OverallSuspicionMetric = new OverallSuspicionMetric();
+    this.p1SuspicionAudio = new SuspicionAudioController({
+      resolveUrl: (src) => `${import.meta.env.BASE_URL}${src}`,
+    });
+    this.p1RapportMetric = new RapportMetric();
+    this.p1GazeController = new GazeController();
+    this.p1GazeController.attachToScene(viewerContainer, {
+      title: "P1 Gaze Controller",
+      showOverlay: p1DemoMode,
+      showHud: p1DemoMode,
+      showVisionBlur: true,
+      showSuspicionVignette: true,
+    });
 
-    if (p1DemoMode) {
-      this.p1GazeController = new GazeController();
-      this.p1SuspicionAudio = new SuspicionAudioController({
-        resolveUrl: (src) => `${import.meta.env.BASE_URL}${src}`,
-      });
-      // P1 rapport
-      this.p1RapportMetric = new RapportMetric();
-      this.p1GazeController.attachToScene(viewerContainer, {
-        title: "P1 Gaze Controller",
-        showOverlay: true,
-      });
+    // The suspicion meter is real game UI, not a debug overlay.
+    if (this.suspicionMeterContainerEl) {
+      this.suspicionMeterContainerEl.style.display = "flex";
     }
     //_________________________________________________________________
 
@@ -431,6 +431,7 @@ export class ConversationStepController {
     this.p1GazeController = null;
     this.p1ZoneTracker = null;
     this.p1SuspicionMetric = null;
+    this.p1OverallSuspicionMetric = null;
     this.p1SuspicionAudio?.dispose();
     this.p1SuspicionAudio = null;
     this.p1RapportMetric = null;
@@ -885,15 +886,17 @@ export class ConversationStepController {
 
     const sourceLabel = this.gazeProviderType === "backend" ? "backend" : "mouse";
     debugLabel.textContent = `User Gaze: ${sourceLabel}`;
-    const p1DemoEnabled = new URLSearchParams(window.location.search).has("p1demo");
+    const p1GameplayEnabled = this.p1RapportMetric !== null;
 
     // Live gaze cursor overlay
     const gazeCursor = document.createElement("div");
     gazeCursor.className = "gaze-cursor";
     container.appendChild(gazeCursor);
 
-    // Only create FSM for gazeaware conditions
-    if (condition === "gazeaware" || p1DemoEnabled) {
+    // Create the FSM both for original gazeaware scenes and for the
+    // spy gameplay layer, which depends on mutual-gaze states even when
+    // the debug overlay itself is hidden.
+    if (condition === "gazeaware" || p1GameplayEnabled) {
       const profile = this.config.gaze_profiles.profiles["default"];
       if (profile) {
         this.gazeFSM = new GazeAwarenessMachine(profile);
@@ -1102,6 +1105,12 @@ export class ConversationStepController {
               (p1RapportSnapshot?.suspicion_multiplier ?? 1) * this.dialogueSuspicionMultiplier,
           })
         : null;
+      const p1OverallSuspicionSnapshot = p1SuspicionSnapshot
+        ? this.p1OverallSuspicionMetric?.update({
+            momentaryValue: p1SuspicionSnapshot.value,
+            nowMs: now,
+          })
+        : null;
       if (p1Snapshot) {
         this.p1GazeController?.updateDebugSnapshot({
           activeZone: p1Snapshot.active_zone,
@@ -1111,6 +1120,8 @@ export class ConversationStepController {
           eyeContactState: this.gazeFSM?.state ?? "baseline",
           suspicionValue: p1SuspicionSnapshot?.value,
           suspicionState: p1SuspicionSnapshot?.state,
+          overallSuspicionValue: p1OverallSuspicionSnapshot?.value,
+          overallSuspicionState: p1OverallSuspicionSnapshot?.state,
           rapportValue: p1RapportSnapshot?.value,
           rapportBand: p1RapportSnapshot?.band,
           rapportSuspicionMultiplier: p1RapportSnapshot?.suspicion_multiplier,

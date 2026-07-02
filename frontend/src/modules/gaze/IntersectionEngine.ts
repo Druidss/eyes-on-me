@@ -76,7 +76,7 @@ function configFromVRM(vrm: VRM): BoundingBoxConfig {
     `offset=(${position.x.toFixed(4)}, ${position.y.toFixed(4)}, ${position.z.toFixed(4)})`,
   );
 
-  return { width, height, depth, padding: 15, position };
+  return { width, height, depth, padding: 35, position };
 }
 
 /**
