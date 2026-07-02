@@ -557,13 +557,16 @@ export class ConversationStepController {
     const container = this.dialogueSubtitleEl?.closest(".dialogue-subtitle") as HTMLElement | null;
     if (container) container.style.display = "flex";
 
-    this.dialogueAudio?.pause();
-    const audio = new Audio(`${import.meta.env.BASE_URL}${node.audio_src}`);
-    audio.addEventListener("ended", () => this.startDialoguePause());
-    audio.play().catch((err: unknown) => {
-      console.warn(`[dialogue] play failed for node "${node.id}":`, err);
-    });
-    this.dialogueAudio = audio;
+    if (!this.dialogueAudio) {
+      this.dialogueAudio = new Audio();
+      this.dialogueAudio.addEventListener("ended", () => this.startDialoguePause());
+      // Attach to lip sync audio handler
+      this.viewer?.attachLipSyncAudio(this.dialogueAudio);
+    } else {
+      this.dialogueAudio.pause();
+    }
+
+    this.dialogueAudio.src = `${import.meta.env.BASE_URL}${node.audio_src}`;
 
     // Trigger custom VRMA motion if configured
     if (node.motion) {
@@ -580,6 +583,10 @@ export class ConversationStepController {
       // If no motion is configured for this line, stop any previously active motion
       this.viewer?.avatar?.stopReaction().catch(() => {});
     }
+
+    this.dialogueAudio.play().catch((err: unknown) => {
+      console.warn(`[dialogue] play failed for node "${node.id}":`, err);
+    });
 
     this.reporter.emit("study.dialogue_line_started", {
       script_node_id: node.id,
@@ -654,6 +661,7 @@ export class ConversationStepController {
     this.dialogueAudio?.pause();
     if (this.dialogueAudio) this.dialogueAudio.src = "";
     this.dialogueAudio = null;
+    this.viewer?.detachLipSync();
     this.dialogueSequencer = null;
     this.dialogueSuspicionMultiplier = 1;
     this.viewer?.avatar?.stopReaction().catch(() => {});

@@ -25,6 +25,7 @@ export class ChatVrmAvatarRuntime {
   private _lipSync: LipSync | null = null;
   private _audioCtx: AudioContext | null = null;
   private _audioSource: MediaStreamAudioSourceNode | null = null;
+  private _audioElementSource: MediaElementAudioSourceNode | null = null;
 
   // Default face: subtle expression so the avatar doesn't look dead
   private static readonly DEFAULT_EXPRESSION = "relaxed";
@@ -87,6 +88,30 @@ export class ChatVrmAvatarRuntime {
     }
   }
 
+  /**
+   * Connect an HTMLAudioElement for amplitude-based lip sync.
+   * Creates an AudioContext + analyser graph. The source is connected to
+   * destination so that the sound remains audible.
+   */
+  public attachLipSyncAudio(audio: HTMLAudioElement): void {
+    this.detachLipSync();
+
+    try {
+      this._audioCtx = new AudioContext();
+      this._lipSync = new LipSync(this._audioCtx);
+      this._audioElementSource = this._audioCtx.createMediaElementSource(audio);
+      this._audioElementSource.connect(this._lipSync.analyser);
+      this._audioElementSource.connect(this._audioCtx.destination);
+
+      if (this._audioCtx.state === "suspended") {
+        this._audioCtx.resume().catch(() => {});
+      }
+    } catch (e) {
+      console.warn("[ChatVrmAvatarRuntime] Audio element lip sync setup failed:", e);
+      this.detachLipSync();
+    }
+  }
+
   /** Disconnect all lip sync audio nodes. Idempotent. */
   public detachLipSync(): void {
     if (this._audioSource) {
@@ -96,6 +121,14 @@ export class ChatVrmAvatarRuntime {
         /* already disconnected */
       }
       this._audioSource = null;
+    }
+    if (this._audioElementSource) {
+      try {
+        this._audioElementSource.disconnect();
+      } catch {
+        /* already disconnected */
+      }
+      this._audioElementSource = null;
     }
     if (this._audioCtx) {
       this._audioCtx.close().catch(() => {});

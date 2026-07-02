@@ -158,6 +158,11 @@ export class ViewerCore {
     this.runtime?.attachLipSyncStream(stream);
   }
 
+  /** Connect an HTMLAudioElement for lip sync. No-op without avatar. */
+  attachLipSyncAudio(audio: HTMLAudioElement): void {
+    this.runtime?.attachLipSyncAudio(audio);
+  }
+
   /** Disconnect lip sync audio. Idempotent. */
   detachLipSync(): void {
     this.runtime?.detachLipSync();
