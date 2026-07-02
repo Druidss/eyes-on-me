@@ -565,6 +565,22 @@ export class ConversationStepController {
     });
     this.dialogueAudio = audio;
 
+    // Trigger custom VRMA motion if configured
+    if (node.motion) {
+      let freezeTimeSec: number | undefined = undefined;
+      if (node.motion === "thinking") {
+        freezeTimeSec = 1.5; // Freeze when looking fully down at papers
+      } else if (node.motion === "look_around") {
+        freezeTimeSec = 1.35; // Freeze when turned fully towards the wall map/phone
+      }
+      this.viewer?.avatar?.playReaction(node.motion, node.motion_loop ?? false, freezeTimeSec).catch((err: unknown) => {
+        console.warn(`[dialogue] motion play failed for "${node.motion}":`, err);
+      });
+    } else {
+      // If no motion is configured for this line, stop any previously active motion
+      this.viewer?.avatar?.stopReaction().catch(() => {});
+    }
+
     this.reporter.emit("study.dialogue_line_started", {
       script_node_id: node.id,
       condition: this.condition ?? null,
@@ -592,18 +608,28 @@ export class ConversationStepController {
     const timerContainer = this.timerEl?.closest(".conversation-timer") as HTMLElement | null;
     timerContainer?.classList.add("timer-pause-flash");
 
+    // Custom looping animations are kept active during the pause and stopped when transitioning.
+
+    const currentLine = this.dialogueSequencer?.currentLine;
+    const pauseDuration = (currentLine && currentLine.pause_after_ms != null)
+      ? currentLine.pause_after_ms
+      : ConversationStepController.DIALOGUE_LINE_GAP_MS;
+
     this.dialoguePauseTimeoutId = setTimeout(() => {
       this.dialoguePauseTimeoutId = null;
       container?.classList.remove("dialogue-subtitle-paused");
       timerContainer?.classList.remove("timer-pause-flash");
       this.dialogueSequencer?.advance();
-    }, ConversationStepController.DIALOGUE_LINE_GAP_MS);
+    }, pauseDuration);
   }
 
   /** Hide the subtitle bar and emit a telemetry marker when the script ends. */
   private handleDialogueScriptEnd(lastNode: DialogueLineNode): void {
     const container = this.dialogueSubtitleEl?.closest(".dialogue-subtitle") as HTMLElement | null;
     if (container) container.style.display = "none";
+
+    // Stop any active custom dialogue animation
+    this.viewer?.avatar?.stopReaction().catch(() => {});
 
     this.reporter.emit("study.dialogue_script_ended", {
       last_node_id: lastNode.id,
@@ -630,6 +656,7 @@ export class ConversationStepController {
     this.dialogueAudio = null;
     this.dialogueSequencer = null;
     this.dialogueSuspicionMultiplier = 1;
+    this.viewer?.avatar?.stopReaction().catch(() => {});
   }
 
   private initViewer(

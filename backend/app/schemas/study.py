@@ -147,6 +147,9 @@ class DialogueLineNode(BaseModel):
     speaker: str | None = None
     direction: str | None = None
     safe_window: DialogueSafeWindow | None = None
+    motion: str | None = None
+    motion_loop: bool | None = None
+    pause_after_ms: int | None = None
     next: str | None = None
 
 

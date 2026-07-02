@@ -29,6 +29,9 @@
           "direction": "Vane looks down. He is no longer looking at the player. [Opportunity 1 - Safe Window]: the player can safely scan the room without increasing suspicion.",
           "text": "Let me sign these transfer papers first... We cannot afford any bureaucratic delays when the city is on the brink of chaos.",
           "safe_window": { "suspicion_multiplier": 0 },
+          "motion": "thinking",
+          "motion_loop": true,
+          "pause_after_ms": 15000,
           "next": "check_suspicion_1"
         },
         {
@@ -74,6 +77,9 @@
           "direction": "Vane sighs, turning his head completely to look at the wall map. [Opportunity 2 - Safe Window]: the player can safely scan the room again.",
           "text": "Look at the layout of the city... The harbor districts are a maze. A tactical nightmare.",
           "safe_window": { "suspicion_multiplier": 0 },
+          "motion": "look_around",
+          "motion_loop": true,
+          "pause_after_ms": 4000,
           "next": "VANE_07"
         },
         {
@@ -84,6 +90,9 @@
           "direction": "Vane mutters to himself while studying the map. The player can safely scan the room during this line, then Vane turns back to face the player at the end.",
           "text": "The docks at sector four are heavily guarded, but the northern channels... they are completely exposed. If they reach open water, we lose them.",
           "safe_window": { "suspicion_multiplier": 0 },
+          "motion": "look_around",
+          "motion_loop": true,
+          "pause_after_ms": 4000,
           "next": "check_suspicion_2"
         },
         {
@@ -119,6 +128,9 @@
           "speaker": "Director Vane",
           "direction": "The retro desk phone rings. Vane picks up the receiver, turning his head slightly away.",
           "text": "Hold that thought, Miller.",
+          "motion": "look_around",
+          "motion_loop": true,
+          "pause_after_ms": 3000,
           "next": "VANE_10"
         },
         {
@@ -129,6 +141,9 @@
           "direction": "[Opportunity 3 - Safe Window]: the NPC is holding the phone/looking slightly away — the player's final safe chance to scan the room.",
           "text": "Yes?... No, I am in a briefing... What? The perimeter guards at the old embankment are complaining about the cold? Tell them to stay alert, the Vanguard is active tonight. Understood, reinforce the guards at sector seven as well. I don't want any surprises... No, I will call you back on the secure line in five minutes. Just get it done.",
           "safe_window": { "suspicion_multiplier": 0 },
+          "motion": "look_around",
+          "motion_loop": true,
+          "pause_after_ms": 4000,
           "next": "check_ending"
         },
         {

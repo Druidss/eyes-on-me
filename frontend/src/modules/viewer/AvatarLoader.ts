@@ -15,8 +15,10 @@ export class AvatarLoader {
   private readonly lookAtTarget: THREE.Object3D;
   private _disposed = false;
   private idleAction: THREE.AnimationAction | null = null;
-  private angryClipPromise: Promise<THREE.AnimationClip | null> | null = null;
-  private angryFinishedListener: ((e: { action: THREE.AnimationAction }) => void) | null = null;
+  private animationPromises = new Map<string, Promise<THREE.AnimationClip | null>>();
+  private activeAnimationListener: ((e: { action: THREE.AnimationAction }) => void) | null = null;
+  private activeAction: THREE.AnimationAction | null = null;
+  private activeFreezeTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   constructor(lookAtTarget: THREE.Object3D) {
     this.lookAtTarget = lookAtTarget;
@@ -142,69 +144,155 @@ export class AvatarLoader {
   }
 
   /**
-   * Loads animations/angry.vrma (lazily, once) and returns the built clip.
-   * Reuses createHumanoidTracks the same way as the idle clip, but does
-   * NOT strip the t=0 rotational bias — that correction exists only to
-   * stop yaw drift from accumulating across an infinitely looping idle
-   * clip; a one-shot reaction should keep its authored starting pose.
+   * Loads any animation file from animations/[name].vrma (lazily, cached) and returns the built clip.
    */
-  private loadAngryClip(): Promise<THREE.AnimationClip | null> {
-    if (!this.angryClipPromise) {
-      this.angryClipPromise = (async () => {
+  private loadClip(name: string): Promise<THREE.AnimationClip | null> {
+    let p = this.animationPromises.get(name);
+    if (!p) {
+      p = (async () => {
         if (!this.vrm) return null;
-        const url = `${import.meta.env.BASE_URL}animations/angry.vrma`;
-        const vrmAnimation = await loadVRMAnimation(url);
-        if (!vrmAnimation || this._disposed || !this.vrm) return null;
-
-        const tracks = vrmAnimation
-          .createHumanoidTracks(this.vrm)
-          .filter((t) => !t.name.endsWith(".position"));
-        if (tracks.length === 0) return null;
-
-        return new THREE.AnimationClip("angry", vrmAnimation.duration, tracks);
+        const url = `${import.meta.env.BASE_URL}animations/${name}.vrma`;
+        try {
+          const vrmAnimation = await loadVRMAnimation(url);
+          if (!vrmAnimation || this._disposed || !this.vrm) return null;
+          const tracks = vrmAnimation
+            .createHumanoidTracks(this.vrm)
+            .filter((t) => !t.name.endsWith(".position"));
+          if (tracks.length === 0) return null;
+          return new THREE.AnimationClip(name, vrmAnimation.duration, tracks);
+        } catch (e) {
+          console.error(`[AvatarLoader] Failed to load animation "${name}":`, e);
+          return null;
+        }
       })();
+      this.animationPromises.set(name, p);
     }
-    return this.angryClipPromise;
+    return p;
   }
 
   /**
-   * Plays the angry.vrma reaction once, crossfading out of the idle loop
-   * and back into it when the reaction finishes. No-op if the clip fails
-   * to load or the avatar has since been disposed/replaced.
+   * Plays a named VRMA reaction, crossfading out of the idle loop.
+   * If loop is false, it automatically transitions back to idle when finished.
+   * If freezeTimeSec is provided, it will pause the animation at that timestamp to hold the pose.
+   * Procedural lookAt tracking is temporarily suspended while the reaction is active.
    */
-  async playAngryReaction(): Promise<void> {
+  async playReaction(name: string, loop = false, freezeTimeSec?: number, crossfadeDuration = 0.25): Promise<void> {
     if (!this.mixer || !this.vrm) return;
-    const clip = await this.loadAngryClip();
+    const clip = await this.loadClip(name);
     if (!clip || this._disposed || !this.mixer) return;
 
     const mixer = this.mixer;
     const idleAction = this.idleAction;
 
-    if (this.angryFinishedListener) {
-      mixer.removeEventListener("finished", this.angryFinishedListener);
-      this.angryFinishedListener = null;
+    if (this.activeAnimationListener) {
+      mixer.removeEventListener("finished", this.activeAnimationListener);
+      this.activeAnimationListener = null;
+    }
+    if (this.activeAction) {
+      this.activeAction.paused = false;
+      this.activeAction.stop();
+      this.activeAction = null;
+    }
+    if (this.activeFreezeTimeoutId !== null) {
+      clearTimeout(this.activeFreezeTimeoutId);
+      this.activeFreezeTimeoutId = null;
+    }
+
+    // Disable procedural lookAt so the animation has full control of neck/head/eyes
+    if (this.vrm.lookAt) {
+      this.vrm.lookAt.autoUpdate = false;
     }
 
     const action = mixer.clipAction(clip);
-    action.setLoop(THREE.LoopOnce, 1);
-    action.clampWhenFinished = true;
+    const isLooping = loop && freezeTimeSec === undefined;
+    if (isLooping) {
+      action.setLoop(THREE.LoopRepeat, Infinity);
+      action.clampWhenFinished = false;
+    } else {
+      action.setLoop(THREE.LoopOnce, 1);
+      action.clampWhenFinished = true;
+    }
     action.reset();
     action.play();
+    this.activeAction = action;
 
     if (idleAction) {
-      idleAction.crossFadeTo(action, 0.25, false);
+      idleAction.crossFadeTo(action, crossfadeDuration, false);
     }
 
-    const onFinished = (e: { action: THREE.AnimationAction }) => {
-      if (e.action !== action) return;
-      mixer.removeEventListener("finished", onFinished);
-      this.angryFinishedListener = null;
-      if (idleAction && !this._disposed) {
-        action.crossFadeTo(idleAction, 0.4, false);
-      }
-    };
-    this.angryFinishedListener = onFinished;
-    mixer.addEventListener("finished", onFinished);
+    if (freezeTimeSec !== undefined && freezeTimeSec > 0) {
+      this.activeFreezeTimeoutId = setTimeout(() => {
+        this.activeFreezeTimeoutId = null;
+        if (this.activeAction === action && !this._disposed) {
+          action.paused = true;
+        }
+      }, freezeTimeSec * 1000);
+    }
+
+    // Only set up a finished listener if the animation is not looping and we are not freezing it
+    if (!isLooping && freezeTimeSec === undefined) {
+      const onFinished = (e: { action: THREE.AnimationAction }) => {
+        if (e.action !== action) return;
+        mixer.removeEventListener("finished", onFinished);
+        if (this.activeAnimationListener === onFinished) {
+          this.activeAnimationListener = null;
+        }
+        if (this.activeAction === action) {
+          this.activeAction = null;
+        }
+
+        // Restore procedural lookAt
+        if (this.vrm && this.vrm.lookAt && !this._disposed) {
+          this.vrm.lookAt.autoUpdate = true;
+        }
+
+        if (idleAction && !this._disposed) {
+          action.crossFadeTo(idleAction, 0.4, false);
+        }
+      };
+      this.activeAnimationListener = onFinished;
+      mixer.addEventListener("finished", onFinished);
+    }
+  }
+
+  /**
+   * Manually stops any active reaction and transitions back to the idle loop.
+   */
+  async stopReaction(crossfadeDuration = 0.4): Promise<void> {
+    if (this.activeFreezeTimeoutId !== null) {
+      clearTimeout(this.activeFreezeTimeoutId);
+      this.activeFreezeTimeoutId = null;
+    }
+
+    if (!this.mixer || !this.vrm || !this.activeAction) return;
+
+    const mixer = this.mixer;
+    const idleAction = this.idleAction;
+    const action = this.activeAction;
+
+    action.paused = false;
+
+    if (this.activeAnimationListener) {
+      mixer.removeEventListener("finished", this.activeAnimationListener);
+      this.activeAnimationListener = null;
+    }
+    this.activeAction = null;
+
+    // Restore procedural lookAt
+    if (this.vrm.lookAt) {
+      this.vrm.lookAt.autoUpdate = true;
+    }
+
+    if (idleAction && !this._disposed) {
+      action.crossFadeTo(idleAction, crossfadeDuration, false);
+    } else {
+      action.stop();
+    }
+  }
+
+  /** Backwards compatible helper to play the angry reaction */
+  async playAngryReaction(): Promise<void> {
+    return this.playReaction("angry");
   }
 
   /** Disposes the currently loaded VRM and frees GPU resources. */

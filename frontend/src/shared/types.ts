@@ -146,6 +146,12 @@ export interface DialogueLineNode {
   direction?: string;
   /** Suspicion gain adjustment active for the duration of this line. */
   safe_window?: DialogueSafeWindow;
+  /** Custom VRMA animation to play when the dialogue line starts. */
+  motion?: string;
+  /** Whether the custom VRMA animation should loop continuously until the dialogue line ends. */
+  motion_loop?: boolean;
+  /** Custom delay in milliseconds to wait after the voice line finishes playing before advancing. */
+  pause_after_ms?: number;
   /** Next node id. Omit on the script's final node. */
   next?: string;
 }

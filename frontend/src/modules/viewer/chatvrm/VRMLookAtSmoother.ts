@@ -253,7 +253,7 @@ export class VRMLookAtSmoother extends VRMLookAt {
 
   /** Call after render to revert head rotation applied in update(). */
   public revertFirstPersonBoneQuat(): void {
-    if (this.userTarget) {
+    if (this.autoUpdate && this.userTarget) {
       // Must restore to the RAW bone — same as the capture source in
       // update(). In three-vrm 3.x normalized and raw are separate
       // hierarchies; writing a raw quaternion back to the normalized
