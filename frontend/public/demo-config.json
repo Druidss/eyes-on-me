@@ -436,7 +436,7 @@
             "safe_window": {
               "suspicion_multiplier": 0
             },
-            "motion": "thinking",
+            "motion": "look_around",
             "motion_loop": true,
             "pause_after_ms": 15000,
             "next": "check_suspicion_1"

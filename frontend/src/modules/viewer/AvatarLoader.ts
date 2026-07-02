@@ -177,6 +177,10 @@ export class AvatarLoader {
    * Procedural lookAt tracking is temporarily suspended while the reaction is active.
    */
   async playReaction(name: string, loop = false, freezeTimeSec?: number, crossfadeDuration = 0.25): Promise<void> {
+    if (this.activeAction && this.activeAction.getClip().name === name) {
+      // Same animation is already active, do not restart it to prevent snapping!
+      return;
+    }
     if (!this.mixer || !this.vrm) return;
     const clip = await this.loadClip(name);
     if (!clip || this._disposed || !this.mixer) return;

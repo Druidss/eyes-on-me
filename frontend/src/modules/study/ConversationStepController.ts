@@ -93,6 +93,9 @@ export class ConversationStepController {
   // audio-to-audio cut.
   private static readonly DIALOGUE_LINE_GAP_MS = 2000;
   private dialoguePauseTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private activeSfxAudio: HTMLAudioElement | null = null;
+  private sfxRingTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private sfxSpeechTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   // Suspicion meter UI: progress bar + text status, shown whenever
   // suspicion tracking is active for this step (see needsSuspicionTracking)
@@ -566,6 +569,19 @@ export class ConversationStepController {
       this.dialogueAudio.pause();
     }
 
+    if (this.sfxRingTimeoutId !== null) {
+      clearTimeout(this.sfxRingTimeoutId);
+      this.sfxRingTimeoutId = null;
+    }
+    if (this.sfxSpeechTimeoutId !== null) {
+      clearTimeout(this.sfxSpeechTimeoutId);
+      this.sfxSpeechTimeoutId = null;
+    }
+    if (this.activeSfxAudio) {
+      this.activeSfxAudio.pause();
+      this.activeSfxAudio = null;
+    }
+
     this.dialogueAudio.src = `${import.meta.env.BASE_URL}${node.audio_src}`;
 
     // Trigger custom VRMA motion if configured
@@ -584,9 +600,36 @@ export class ConversationStepController {
       this.viewer?.avatar?.stopReaction().catch(() => {});
     }
 
-    this.dialogueAudio.play().catch((err: unknown) => {
-      console.warn(`[dialogue] play failed for node "${node.id}":`, err);
-    });
+    if (node.id === "VANE_09") {
+      const ringAudio = new Audio(`${import.meta.env.BASE_URL}audio/sfx/phone_ring.mp3`);
+      ringAudio.play().catch(() => {});
+      this.activeSfxAudio = ringAudio;
+
+      this.sfxRingTimeoutId = setTimeout(() => {
+        this.sfxRingTimeoutId = null;
+        if (this.activeSfxAudio === ringAudio) {
+          ringAudio.pause();
+          this.activeSfxAudio = null;
+          
+          const pickupAudio = new Audio(`${import.meta.env.BASE_URL}audio/sfx/phone_pickup.mp3`);
+          pickupAudio.play().catch(() => {});
+          this.activeSfxAudio = pickupAudio;
+        }
+      }, 3000);
+
+      this.sfxSpeechTimeoutId = setTimeout(() => {
+        this.sfxSpeechTimeoutId = null;
+        if (this.dialogueAudio && this.dialogueAudio.src.endsWith(node.audio_src)) {
+          this.dialogueAudio.play().catch((err: unknown) => {
+            console.warn(`[dialogue] play failed for node "${node.id}":`, err);
+          });
+        }
+      }, 3500);
+    } else {
+      this.dialogueAudio.play().catch((err: unknown) => {
+        console.warn(`[dialogue] play failed for node "${node.id}":`, err);
+      });
+    }
 
     this.reporter.emit("study.dialogue_line_started", {
       script_node_id: node.id,
@@ -621,6 +664,23 @@ export class ConversationStepController {
     const pauseDuration = (currentLine && currentLine.pause_after_ms != null)
       ? currentLine.pause_after_ms
       : ConversationStepController.DIALOGUE_LINE_GAP_MS;
+
+    if (this.activeSfxAudio) {
+      this.activeSfxAudio.pause();
+      this.activeSfxAudio = null;
+    }
+
+    if (currentLine) {
+      if (currentLine.id === "VANE_03") {
+        const signAudio = new Audio(`${import.meta.env.BASE_URL}audio/sfx/paper_signing.mp3`);
+        signAudio.play().catch(() => {});
+        this.activeSfxAudio = signAudio;
+      } else if (currentLine.id === "VANE_10") {
+        const hangupAudio = new Audio(`${import.meta.env.BASE_URL}audio/sfx/phone_pickup.mp3`);
+        hangupAudio.play().catch(() => {});
+        this.activeSfxAudio = hangupAudio;
+      }
+    }
 
     this.dialoguePauseTimeoutId = setTimeout(() => {
       this.dialoguePauseTimeoutId = null;
@@ -658,6 +718,19 @@ export class ConversationStepController {
       this.dialoguePauseTimeoutId = null;
       this.timerEl?.closest(".conversation-timer")?.classList.remove("timer-pause-flash");
     }
+    if (this.sfxRingTimeoutId !== null) {
+      clearTimeout(this.sfxRingTimeoutId);
+      this.sfxRingTimeoutId = null;
+    }
+    if (this.sfxSpeechTimeoutId !== null) {
+      clearTimeout(this.sfxSpeechTimeoutId);
+      this.sfxSpeechTimeoutId = null;
+    }
+    if (this.activeSfxAudio) {
+      this.activeSfxAudio.pause();
+      this.activeSfxAudio = null;
+    }
+
     this.dialogueAudio?.pause();
     if (this.dialogueAudio) this.dialogueAudio.src = "";
     this.dialogueAudio = null;
