@@ -14,6 +14,9 @@ export interface GazeControllerOptions {
   backgroundUrl?: string;
   zones?: RectGazeZone[];
   showOverlay?: boolean;
+  showHud?: boolean;
+  showVisionBlur?: boolean;
+  showSuspicionVignette?: boolean;
 }
 
 
@@ -51,6 +54,7 @@ export class GazeController {
     visionBlurOverlay.style.pointerEvents = "none";
     visionBlurOverlay.style.opacity = "0";
     visionBlurOverlay.style.zIndex = "2";
+    visionBlurOverlay.style.display = options.showVisionBlur === false ? "none" : "block";
     visionBlurOverlay.style.transition = "opacity 180ms ease-out, backdrop-filter 180ms ease-out, background 180ms ease-out";
     visionBlurOverlay.style.backdropFilter = "blur(0px)";
     scene.appendChild(visionBlurOverlay);
@@ -62,6 +66,7 @@ export class GazeController {
     suspicionVignette.style.pointerEvents = "none";
     suspicionVignette.style.opacity = "0";
     suspicionVignette.style.zIndex = "2";
+    suspicionVignette.style.display = options.showSuspicionVignette === false ? "none" : "block";
     suspicionVignette.style.transition = "opacity 180ms ease-out, background 220ms ease-out";
     suspicionVignette.style.background = "radial-gradient(circle at center, rgba(0, 0, 0, 0) 42%, rgba(140, 0, 0, 0.18) 68%, rgba(125, 0, 0, 0.48) 84%, rgba(125, 0, 0, 0.82) 100%)";
     scene.appendChild(suspicionVignette);
@@ -82,6 +87,7 @@ export class GazeController {
     hud.style.fontFamily = "'IBM Plex Sans', system-ui, sans-serif";
     hud.style.minWidth = "220px";
     hud.style.zIndex = "3";
+    hud.style.display = options.showHud === false ? "none" : "block";
     scene.appendChild(hud);
 
     this.overlay = overlay;
