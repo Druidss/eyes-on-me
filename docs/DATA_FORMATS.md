@@ -216,7 +216,10 @@ face bounding box.
   "event_type": "gaze.intersection_changed",
   "data": {
     "intersecting": true,
-    "gaze_source": "mouse"
+    "gaze_source": "mouse",
+    "condition": "gazeaware",
+    "step_id": "condition2",
+    "elapsed_ms_since_step_start": 842.5
   }
 }
 ```
@@ -225,6 +228,9 @@ face bounding box.
 | ----- | ---- | ----------- |
 | `intersecting` | boolean | `true` when gaze enters the face bounding box, `false` when it leaves |
 | `gaze_source` | string | `"mouse"` (browser demo / no Tobii) or `"backend"` (Tobii via backend) |
+| `condition` | string or null | Condition label for this conversation step |
+| `step_id` | string or null | Step ID from `flow.json` |
+| `elapsed_ms_since_step_start` | number or null | Frontend elapsed time since the conversation step began |
 
 This fires on every transition (hit → miss or miss → hit), not on every
 frame. In a typical session there are many of these events.
@@ -240,7 +246,9 @@ Only fires during `gazeaware` conditions (not during `baseline`).
   "data": {
     "from": "baseline",
     "to": "gazeaware_pending",
-    "condition": "gazeaware"
+    "condition": "gazeaware",
+    "step_id": "condition2",
+    "elapsed_ms_since_step_start": 1186.9
   }
 }
 ```
@@ -250,6 +258,8 @@ Only fires during `gazeaware` conditions (not during `baseline`).
 | `from` | string or null | Previous FSM state (`null` for the initial transition) |
 | `to` | string | New FSM state |
 | `condition` | string or null | Condition label for this conversation step |
+| `step_id` | string or null | Step ID from `flow.json` |
+| `elapsed_ms_since_step_start` | number or null | Frontend elapsed time since the conversation step began |
 
 The four FSM states are: `baseline`, `gazeaware_pending`, `gazeaware`,
 `gaze_break`. See `gaze_profiles.json` for timing parameters.
@@ -277,7 +287,7 @@ Only fires when OpenAI Realtime is enabled.
 ### `gaze.source_status_changed`
 
 Emitted when the backend gaze provider transitions between valid and
-stale data. Only fires when the gaze source is `backend` (Tobii mode),
+invalid data. Only fires when the gaze source is `backend` (Tobii mode),
 and only on transitions — not per frame.
 
 ```json
@@ -285,7 +295,7 @@ and only on transitions — not per frame.
   "event_type": "gaze.source_status_changed",
   "data": {
     "gaze_source": "backend",
-    "status": "stale"
+    "status": "invalid"
   }
 }
 ```
@@ -293,7 +303,77 @@ and only on transitions — not per frame.
 | Field | Type | Description |
 | ----- | ---- | ----------- |
 | `gaze_source` | string | Always `"backend"` (this event only fires for backend gaze) |
-| `status` | string | `"valid"` (receiving gaze data) or `"stale"` (no data / connection lost) |
+| `status` | string | `"valid"` (receiving gaze data) or `"invalid"` (no usable data) |
+
+### `gaze.source_status_initialized`
+
+Emitted once at the start of a conversation step to record the initial
+backend gaze validity state. This closes the blind spot where a step
+could stay valid (or invalid) the entire time and never emit a
+transition event.
+
+```json
+{
+  "event_type": "gaze.source_status_initialized",
+  "data": {
+    "gaze_source": "backend",
+    "status": "valid",
+    "condition": "gazeaware",
+    "step_id": "condition2",
+    "elapsed_ms_since_step_start": 0,
+    "stale_threshold_ms": 150
+  }
+}
+```
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `gaze_source` | string | Always `"backend"` |
+| `status` | string | Initial validity state: `"valid"` or `"invalid"` |
+| `condition` | string or null | Condition label for this conversation step |
+| `step_id` | string or null | Step ID from `flow.json` |
+| `elapsed_ms_since_step_start` | number | Always `0` for the initialized event |
+| `stale_threshold_ms` | integer | Freshness threshold used to decide validity |
+
+### `gaze.source_timeline_summary`
+
+Emitted once when a conversation step ends. Summarises the backend
+gaze-validity timeline for signal-quality analysis and also includes the
+reconstructed valid/invalid segments.
+
+```json
+{
+  "event_type": "gaze.source_timeline_summary",
+  "data": {
+    "gaze_source": "backend",
+    "condition": "gazeaware",
+    "step_id": "condition2",
+    "total_ms": 180000.0,
+    "valid_ms": 172450.5,
+    "invalid_ms": 7549.5,
+    "valid_ratio": 0.9581,
+    "dropout_count": 3,
+    "stale_threshold_ms": 150,
+    "segments": [
+      { "status": "valid", "start_ms": 0, "end_ms": 32450.2, "duration_ms": 32450.2 },
+      { "status": "invalid", "start_ms": 32450.2, "end_ms": 32820.7, "duration_ms": 370.5 }
+    ]
+  }
+}
+```
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `gaze_source` | string | Always `"backend"` |
+| `condition` | string or null | Condition label for this conversation step |
+| `step_id` | string or null | Step ID from `flow.json` |
+| `total_ms` | number | Total tracked duration for the step |
+| `valid_ms` | number | Milliseconds spent in a valid state |
+| `invalid_ms` | number | Milliseconds spent in an invalid state |
+| `valid_ratio` | number or null | `valid_ms / total_ms` |
+| `dropout_count` | integer | Number of invalid segments observed |
+| `stale_threshold_ms` | integer | Freshness threshold used to decide validity |
+| `segments` | array | Reconstructed valid/invalid timeline segments |
 
 ### Research mode only
 
@@ -318,7 +398,8 @@ so `avatar_eye_contact` is always `true`.
   "data": {
     "avatar_eye_contact": true,
     "condition": "gazeaware",
-    "step_id": "condition2"
+    "step_id": "condition2",
+    "elapsed_ms_since_step_start": 1422.1
   }
 }
 ```
@@ -328,6 +409,7 @@ so `avatar_eye_contact` is always `true`.
 | `avatar_eye_contact` | boolean | `true` when avatar is oriented toward the user, `false` when looking away |
 | `condition` | string or null | Condition label for this conversation step |
 | `step_id` | string or null | Step ID from `flow.json` |
+| `elapsed_ms_since_step_start` | number or null | Frontend elapsed time since the conversation step began |
 
 ### `gaze.mutual_gaze_changed`
 
@@ -345,7 +427,8 @@ Mutual gaze is `true` when both conditions are met simultaneously:
     "avatar_eye_contact": true,
     "user_intersection": true,
     "condition": "gazeaware",
-    "step_id": "condition2"
+    "step_id": "condition2",
+    "elapsed_ms_since_step_start": 1540.8
   }
 }
 ```
@@ -357,6 +440,94 @@ Mutual gaze is `true` when both conditions are met simultaneously:
 | `user_intersection` | boolean | Whether user gaze hits the avatar face at the time of transition |
 | `condition` | string or null | Condition label for this conversation step |
 | `step_id` | string or null | Step ID from `flow.json` |
+| `elapsed_ms_since_step_start` | number or null | Frontend elapsed time since the conversation step began |
+
+### `spy.gaze_zone_changed`
+
+Emitted when the spy gameplay layer's active gaze zone changes.
+This is useful for latency/responsiveness analysis because it marks when
+the P1 zone system classified gaze as having moved between background,
+officer, and evidence regions.
+
+```json
+{
+  "event_type": "spy.gaze_zone_changed",
+  "data": {
+    "from_zone_id": "background",
+    "from_zone_kind": "background",
+    "to_zone_id": "evidence_photo",
+    "to_zone_kind": "evidence",
+    "condition": "baseline",
+    "step_id": "condition1",
+    "elapsed_ms_since_step_start": 6521.4
+  }
+}
+```
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `from_zone_id` | string or null | Previous active spy zone ID |
+| `from_zone_kind` | string or null | Previous active spy zone kind |
+| `to_zone_id` | string | New active spy zone ID |
+| `to_zone_kind` | string | New active spy zone kind |
+| `condition` | string or null | Condition label for this conversation step |
+| `step_id` | string or null | Step ID from `flow.json` |
+| `elapsed_ms_since_step_start` | number or null | Frontend elapsed time since the conversation step began |
+
+### `spy.metrics_summary`
+
+Emitted once when the conversation step ends. Summarises the spy
+gameplay metrics for downstream analysis so fixation, dwell, rapport,
+and suspicion outcomes do not need to be reconstructed entirely from
+frame-by-frame events.
+
+```json
+{
+  "event_type": "spy.metrics_summary",
+  "data": {
+    "condition": "baseline",
+    "step_id": "condition1",
+    "total_tracked_ms": 171162.5,
+    "fixation_count_total": 42,
+    "fixation_count_per_zone": {
+      "wall_map": 6,
+      "newspaper": 5,
+      "officer_face": 18
+    },
+    "dwell_ms_per_zone": {
+      "background": 54210.4,
+      "officer_body": 18745.8,
+      "wall_map": 22318.1
+    },
+    "eye_contact_state_ms": {
+      "baseline": 15430.2,
+      "gazeaware_pending": 9022.4,
+      "gazeaware": 118700.0,
+      "gaze_break": 28009.9
+    },
+    "average_suspicion": 41.2381,
+    "average_overall_suspicion": 46.9012,
+    "average_rapport": 58.4403,
+    "average_rapport_multiplier": 0.9342,
+    "branch_history": ["VANE_01", "VANE_02", "VANE_08.1"]
+  }
+}
+```
+
+| Field | Type | Description |
+| ----- | ---- | ----------- |
+| `condition` | string or null | Condition label for this conversation step |
+| `step_id` | string or null | Step ID from `flow.json` |
+| `total_tracked_ms` | number | Total gameplay time accumulated into the summary |
+| `fixation_count_total` | integer | Total fixation count across the whole conversation |
+| `fixation_count_per_zone` | object | Per-zone fixation counts keyed by spy zone ID |
+| `dwell_ms_per_zone` | object | Total dwell time per spy zone ID |
+| `eye_contact_state_ms` | object | Time spent in each eye-contact / gaze-FSM state |
+| `average_suspicion` | number or null | Time-weighted average of momentary suspicion over the tracked interval |
+| `average_overall_suspicion` | number or null | Time-weighted average of overall suspicion over the tracked interval |
+| `average_rapport` | number or null | Time-weighted average of rapport over the tracked interval |
+| `average_rapport_multiplier` | number or null | Time-weighted average of the rapport-derived suspicion multiplier |
+| `branch_history` | string[] | Ordered dialogue line-node IDs visited during the script |
 
 ### `study.assignment_recorded`
 
@@ -635,12 +806,19 @@ are remapped to container-relative values.
     "y_px": 207.3,
     "viewer_width_px": 800,
     "viewer_height_px": 600,
+    "viewer_left_screen_px": 560.0,
+    "viewer_top_screen_px": 84.0,
+    "viewer_left_screen_norm": 0.2917,
+    "viewer_top_screen_norm": 0.0778,
+    "viewer_width_screen_norm": 0.4167,
+    "viewer_height_screen_norm": 0.5556,
     "gaze_source": "mouse",
     "intersecting": true,
     "avatar_lookat_yaw_deg": 18.02,
     "avatar_lookat_pitch_deg": 3.99,
     "condition": "gazeaware",
-    "step_id": "condition2"
+    "step_id": "condition2",
+    "elapsed_ms_since_step_start": 12450.6
   }
 }
 ```
@@ -653,12 +831,19 @@ are remapped to container-relative values.
 | `y_px` | number | Gaze y in CSS pixels within the viewer container |
 | `viewer_width_px` | integer | Viewer container width in CSS pixels |
 | `viewer_height_px` | integer | Viewer container height in CSS pixels |
+| `viewer_left_screen_px` | number | Viewer container left edge in CSS pixels relative to the full screen |
+| `viewer_top_screen_px` | number | Viewer container top edge in CSS pixels relative to the full screen |
+| `viewer_left_screen_norm` | number | Viewer container left edge normalised to full-screen width |
+| `viewer_top_screen_norm` | number | Viewer container top edge normalised to full-screen height |
+| `viewer_width_screen_norm` | number | Viewer container width normalised to full-screen width |
+| `viewer_height_screen_norm` | number | Viewer container height normalised to full-screen height |
 | `gaze_source` | string | `"mouse"` or `"backend"` (Tobii) |
 | `intersecting` | boolean | Whether gaze hits the avatar face bounding box |
 | `avatar_lookat_yaw_deg` | number or null | Horizontal angle of the avatar's lookAt target from the camera center, in degrees. Positive = target right of the user. `null` when no avatar is loaded. |
 | `avatar_lookat_pitch_deg` | number or null | Vertical angle of the avatar's lookAt target from the camera center, in degrees. Positive = target above center. `null` when no avatar is loaded. |
 | `condition` | string or null | Condition label for this conversation step |
 | `step_id` | string or null | Step ID from `flow.json` |
+| `elapsed_ms_since_step_start` | number or null | Frontend `performance.now()` elapsed time since the conversation step began |
 
 **Precision:** `x_norm`/`y_norm` are rounded to 4 decimal places
 (0.0001 ≈ 0.1 px on a 1000 px container). `x_px`/`y_px` are
@@ -698,7 +883,7 @@ a session with an active conversation step is in progress.
 
 | | `gaze.sample` | `gaze.tobii_raw` |
 |-| --------------------- | ----------------------- |
-| Source | Frontend rAF loop | Backend ZMQ thread |
+| Source | Frontend rAF loop | Backend Tobii adapter thread |
 | Rate | Configurable (default 90 Hz) | Tobii hardware rate (~90 Hz) |
 | Gaze sources | Mouse + Backend | Backend (Tobii) only |
 | Coordinates | Viewer-container-relative | Screen-normalised + raw pixel |
@@ -735,9 +920,11 @@ hardware output — no artificial upsampling.
     "x_raw_px": 925.6,
     "y_raw_px": 335.0,
     "seq": 48001,
+    "capture_adapter": "tobii_stream",
     "gaze_source": "backend",
     "step_id": "condition2",
-    "condition": "gazeaware"
+    "condition": "gazeaware",
+    "elapsed_ms_since_step_start": 12447.2
   }
 }
 ```
@@ -746,17 +933,20 @@ hardware output — no artificial upsampling.
 | ----- | ---- | ----------- |
 | `x_norm` | number | Normalised gaze x [0, 1] relative to full screen |
 | `y_norm` | number | Normalised gaze y [0, 1] relative to full screen |
-| `x_raw_px` | number | Raw screen x in pixels from TobiiStream |
-| `y_raw_px` | number | Raw screen y in pixels from TobiiStream |
-| `seq` | integer | TobiiStream sequence number |
+| `x_raw_px` | number or null | Raw screen x in pixels from the active Tobii adapter |
+| `y_raw_px` | number or null | Raw screen y in pixels from the active Tobii adapter |
+| `seq` | integer or null | TobiiStream sequence number when available; `null` for direct Tobii Pro SDK capture |
+| `capture_adapter` | string | `"tobii_stream"` or `"tobii_pro"` |
 | `gaze_source` | string | Always `"backend"` |
 | `step_id` | string or null | Step ID from study context sync |
 | `condition` | string or null | Condition from study context sync |
+| `elapsed_ms_since_step_start` | number or null | Backend elapsed time since the current conversation step context was set |
 
 **Note:** `x_norm`/`y_norm` are screen-relative (full display), not
 viewer-container-relative like `gaze.sample`. To map these to the
-viewer container, use the viewer position/size from `gaze.sample`
-events or the application window geometry.
+viewer container, use the viewer screen-rect fields from `gaze.sample`
+(`viewer_left_screen_norm`, `viewer_top_screen_norm`,
+`viewer_width_screen_norm`, `viewer_height_screen_norm`).
 
 **Precision:** `x_norm`/`y_norm` rounded to 4 decimal places.
 `x_raw_px`/`y_raw_px` rounded to 1 decimal place (sub-pixel from

@@ -10,6 +10,7 @@ import { VRMLookAtSmoother, SACCADE_PROFILES } from "../viewer/chatvrm/VRMLookAt
 import type { GazeProvider } from "../gaze/GazeProvider.js";
 import { MouseProvider } from "../gaze/MouseProvider.js";
 import { BackendGazeProvider } from "../gaze/BackendGazeProvider.js";
+import type { GazeInvalidReason } from "../gaze/BackendGazeProvider.js";
 import { apiBase } from "../../shared/apiBase.js";
 import { IntersectionEngine } from "../gaze/IntersectionEngine.js";
 import { GazeAwarenessMachine } from "../gaze/GazeAwarenessMachine.js";
@@ -34,6 +35,35 @@ import { TimelineAudioPlayer, createPlayAudioActionHandler } from "./timelineAct
 import { DialogueSequencer } from "./DialogueSequencer.js";
 // P1 rapport metric
 import { RapportMetric } from "../spy/RapportMetric.js";
+
+type GazeSourceStatus = "valid" | "invalid";
+type EyeContactStateKey = "baseline" | "gazeaware_pending" | "gazeaware" | "gaze_break";
+
+interface GazeReliabilitySegment {
+  status: GazeSourceStatus;
+  invalid_reason: GazeInvalidReason | null;
+  start_ms: number;
+  end_ms: number;
+  duration_ms: number;
+}
+
+interface SpyMetricsSummaryState {
+  trackedMs: number;
+  lastUpdateMs: number | null;
+  lastZoneId: string | null;
+  lastEyeContactState: EyeContactStateKey;
+  lastSuspicionValue: number | null;
+  lastOverallSuspicionValue: number | null;
+  lastRapportValue: number | null;
+  lastRapportMultiplier: number | null;
+  dwellMsByZone: Map<string, number>;
+  eyeContactStateMs: Record<EyeContactStateKey, number>;
+  suspicionArea: number;
+  overallSuspicionArea: number;
+  rapportArea: number;
+  rapportMultiplierArea: number;
+  branchHistory: string[];
+}
 
 /**
  * Manages the conversation step lifecycle: 3D viewer, gaze tracking,
@@ -75,6 +105,13 @@ export class ConversationStepController {
   // blur tune
   private readonly visionBlurGraceMs = 60;
   private readonly visionBlurFullMs = 150;
+  private conversationStepStartMs: number | null = null;
+  private readonly gazeReliabilityStaleThresholdMs = 150;
+  private gazeReliabilityStartMs: number | null = null;
+  private gazeReliabilityCurrentStatus: GazeSourceStatus | null = null;
+  private gazeReliabilityCurrentInvalidReason: GazeInvalidReason | null = null;
+  private gazeReliabilityCurrentStatusStartMs: number | null = null;
+  private gazeReliabilitySegments: GazeReliabilitySegment[] = [];
 
   // Timer state (ported from P2 branch)
   private timerIntervalId: ReturnType<typeof setInterval> | null = null;
@@ -106,6 +143,7 @@ export class ConversationStepController {
   private suspicionMeterContainerEl: HTMLElement | null = null;
   private suspicionMeterFillEl: HTMLElement | null = null;
   private suspicionMeterStateEl: HTMLElement | null = null;
+  private spyMetricsSummary = this.createSpyMetricsSummaryState();
 
   constructor(deps: {
     config: StudyConfig;
@@ -131,6 +169,8 @@ export class ConversationStepController {
     this.condition = resolvedCondition ?? step.condition;
     this.onTimeout = onTimeout ?? null;
     this.durationSeconds = step.duration_seconds ?? null;
+    this.conversationStepStartMs = performance.now();
+    this.spyMetricsSummary = this.createSpyMetricsSummaryState();
 
     // Timeline: build a controller only if this step has cues configured.
     // Pure time-driven — does not read gaze/suspicion state. The action
@@ -425,6 +465,26 @@ export class ConversationStepController {
       this.realtimeClient = null;
     }
 
+    this.suspicionMeterContainerEl = null;
+    this.suspicionMeterFillEl = null;
+    this.suspicionMeterStateEl = null;
+
+    if (this.gazeLoopId !== null) {
+      cancelAnimationFrame(this.gazeLoopId);
+      this.gazeLoopId = null;
+    }
+    const destroyNowMs = performance.now();
+    this.flushGazeReliabilitySummary(destroyNowMs);
+    this.flushSpyMetricsSummary(destroyNowMs);
+    this.gazeProvider?.stop();
+    this.gazeProvider = null;
+    this.intersectionEngine = null;
+    this.gazeFSM?.reset();
+    this.gazeFSM = null;
+    this.lookAtSmoother = null;
+    this.gazeInvalidStartedAtMs = null;
+    this.conversationStepStartMs = null;
+
     // P1 temporary integration cleanup:
     // remove the development-only overlay when leaving the conversation step.
     this.p1GazeController?.destroy();
@@ -436,22 +496,6 @@ export class ConversationStepController {
     this.p1SuspicionAudio = null;
     this.p1RapportMetric = null;
     //_________________________________________________________________
-
-    this.suspicionMeterContainerEl = null;
-    this.suspicionMeterFillEl = null;
-    this.suspicionMeterStateEl = null;
-
-    if (this.gazeLoopId !== null) {
-      cancelAnimationFrame(this.gazeLoopId);
-      this.gazeLoopId = null;
-    }
-    this.gazeProvider?.stop();
-    this.gazeProvider = null;
-    this.intersectionEngine = null;
-    this.gazeFSM?.reset();
-    this.gazeFSM = null;
-    this.lookAtSmoother = null;
-    this.gazeInvalidStartedAtMs = null;
 
     if (this.viewer) {
       this.viewer.destroy();
@@ -557,6 +601,8 @@ export class ConversationStepController {
    * audio playback directly.
    */
   private handleDialogueLineStart(node: DialogueLineNode): void {
+    this.spyMetricsSummary.branchHistory.push(node.id);
+
     if (this.dialogueSubtitleEl) this.dialogueSubtitleEl.textContent = node.text;
     const container = this.dialogueSubtitleEl?.closest(".dialogue-subtitle") as HTMLElement | null;
     if (container) container.style.display = "flex";
@@ -954,6 +1000,9 @@ export class ConversationStepController {
     let prevHit: boolean | null = null;
     let prevFsmState: string | null = null;
     let prevBackendValid: boolean | null = null;
+    let prevBackendInvalidReason: GazeInvalidReason | null = null;
+    let prevSpyZoneId: string | null = null;
+    let prevSpyZoneKind: string | null = null;
 
     // Mutual gaze tracking
     const mgTracker = new MutualGazeTracker();
@@ -985,15 +1034,17 @@ export class ConversationStepController {
         this.gazeProvider instanceof BackendGazeProvider
       ) {
         const valid = this.gazeProvider.lastValid;
-        if (prevBackendValid !== null && valid !== prevBackendValid) {
-          this.reporter.emit("gaze.source_status_changed", {
-            gaze_source: "backend",
-            status: valid ? "valid" : "stale",
-            condition: this.condition ?? null,
-            step_id: this.stepId ?? null,
-          });
+        const invalidReason = this.gazeProvider.lastInvalidReason;
+        if (prevBackendValid === null) {
+          this.initializeGazeReliabilityStatus(now, valid, invalidReason);
+        } else if (
+          valid !== prevBackendValid
+          || (!valid && invalidReason !== prevBackendInvalidReason)
+        ) {
+          this.transitionGazeReliabilityStatus(now, valid, invalidReason);
         }
         prevBackendValid = valid;
+        prevBackendInvalidReason = invalidReason;
         this.p1GazeController?.setVisionBlurAmount(this.updateVisionBlurAmount(now, valid));
 
         if (!valid) {
@@ -1045,6 +1096,21 @@ export class ConversationStepController {
       // feed the original kit's gaze provider output + face-hit result into
       // the P1 tracker, then use the live snapshot in the P1 gameplay metrics.
       const p1Snapshot = this.p1ZoneTracker?.update(gaze, now, isHit);
+      if (p1Snapshot) {
+        if (isResearch && p1Snapshot.active_zone.changed) {
+          this.reporter.emit("spy.gaze_zone_changed", {
+            from_zone_id: prevSpyZoneId,
+            from_zone_kind: prevSpyZoneKind,
+            to_zone_id: p1Snapshot.active_zone.id,
+            to_zone_kind: p1Snapshot.active_zone.kind,
+            condition: this.condition ?? null,
+            step_id: this.stepId ?? null,
+            elapsed_ms_since_step_start: this.stepElapsedMs(now),
+          });
+        }
+        prevSpyZoneId = p1Snapshot.active_zone.id;
+        prevSpyZoneKind = p1Snapshot.active_zone.kind;
+      }
       //______________________________________________________________________
 
       // Gaze cursor intersection feedback
@@ -1055,8 +1121,15 @@ export class ConversationStepController {
         lastSampleTime = now;
         const vw = container.clientWidth;
         const vh = container.clientHeight;
+        const rect = container.getBoundingClientRect();
         const xNorm = Math.round(gaze.x * 10000) / 10000;
         const yNorm = Math.round(gaze.y * 10000) / 10000;
+        const borderW = (window.outerWidth - window.innerWidth) / 2;
+        const chromeH = window.outerHeight - window.innerHeight - borderW;
+        const viewerLeftScreenPx = window.screenX + borderW + rect.left;
+        const viewerTopScreenPx = window.screenY + chromeH + rect.top;
+        const screenWidthPx = Math.max(screen.width, 1);
+        const screenHeightPx = Math.max(screen.height, 1);
 
         // Avatar applied eye direction including saccade offsets (T35a)
         let avatarLookatYawDeg: number | null = null;
@@ -1073,12 +1146,21 @@ export class ConversationStepController {
           y_px: Math.round(yNorm * vh * 10) / 10,
           viewer_width_px: vw,
           viewer_height_px: vh,
+          viewer_left_screen_px: Math.round(viewerLeftScreenPx * 10) / 10,
+          viewer_top_screen_px: Math.round(viewerTopScreenPx * 10) / 10,
+          viewer_left_screen_norm: Math.round((viewerLeftScreenPx / screenWidthPx) * 10000) / 10000,
+          viewer_top_screen_norm: Math.round((viewerTopScreenPx / screenHeightPx) * 10000) / 10000,
+          viewer_width_screen_norm: Math.round((vw / screenWidthPx) * 10000) / 10000,
+          viewer_height_screen_norm: Math.round((vh / screenHeightPx) * 10000) / 10000,
           gaze_source: this.gazeProviderType,
           intersecting: isHit,
           avatar_lookat_yaw_deg: avatarLookatYawDeg,
           avatar_lookat_pitch_deg: avatarLookatPitchDeg,
           condition: this.condition ?? null,
           step_id: this.stepId ?? null,
+          elapsed_ms_since_step_start: this.conversationStepStartMs !== null
+            ? this.roundMs(now - this.conversationStepStartMs)
+            : null,
         });
       }
 
@@ -1096,6 +1178,7 @@ export class ConversationStepController {
           gaze_source: this.gazeProviderType,
           condition: this.condition ?? null,
           step_id: this.stepId ?? null,
+          elapsed_ms_since_step_start: this.stepElapsedMs(now),
         });
         prevHit = isHit;
       }
@@ -1122,6 +1205,8 @@ export class ConversationStepController {
             from: prevFsmState,
             to: fsmState,
             condition: this.condition ?? null,
+            step_id: this.stepId ?? null,
+            elapsed_ms_since_step_start: this.stepElapsedMs(now),
           });
           prevFsmState = fsmState;
         }
@@ -1158,6 +1243,14 @@ export class ConversationStepController {
             nowMs: now,
           })
         : null;
+      this.accumulateSpyMetricsSummary(now, {
+        zoneId: p1Snapshot?.active_zone.id ?? null,
+        eyeContactState: this.normalizeEyeContactState(this.gazeFSM?.state ?? "baseline"),
+        suspicionValue: p1SuspicionSnapshot?.value ?? null,
+        overallSuspicionValue: p1OverallSuspicionSnapshot?.value ?? null,
+        rapportValue: p1RapportSnapshot?.value ?? null,
+        rapportMultiplier: p1RapportSnapshot?.suspicion_multiplier ?? null,
+      });
       if (p1Snapshot) {
         this.p1GazeController?.updateDebugSnapshot({
           activeZone: p1Snapshot.active_zone,
@@ -1205,6 +1298,7 @@ export class ConversationStepController {
           avatar_eye_contact: avatarEyeContact,
           condition: this.condition ?? null,
           step_id: this.stepId ?? null,
+          elapsed_ms_since_step_start: this.stepElapsedMs(now),
         });
         prevAvatarEyeContact = avatarEyeContact;
       }
@@ -1217,6 +1311,7 @@ export class ConversationStepController {
           user_intersection: isHit,
           condition: this.condition ?? null,
           step_id: this.stepId ?? null,
+          elapsed_ms_since_step_start: this.stepElapsedMs(now),
         });
         prevMutualGaze = mutualGaze;
       }
@@ -1247,6 +1342,286 @@ export class ConversationStepController {
       / Math.max(1, this.visionBlurFullMs - this.visionBlurGraceMs),
     );
     return normalized * normalized;
+  }
+
+  private initializeGazeReliabilityStatus(
+    nowMs: number,
+    valid: boolean,
+    invalidReason: GazeInvalidReason | null,
+  ): void {
+    const status: GazeSourceStatus = valid ? "valid" : "invalid";
+    this.gazeReliabilityStartMs = nowMs;
+    this.gazeReliabilityCurrentStatus = status;
+    this.gazeReliabilityCurrentInvalidReason = valid ? null : invalidReason;
+    this.gazeReliabilityCurrentStatusStartMs = nowMs;
+    this.gazeReliabilitySegments = [];
+
+    this.reporter.emit("gaze.source_status_initialized", {
+      gaze_source: "backend",
+      status,
+      invalid_reason: valid ? null : invalidReason,
+      condition: this.condition ?? null,
+      step_id: this.stepId ?? null,
+      elapsed_ms_since_step_start: 0,
+      stale_threshold_ms: this.gazeReliabilityStaleThresholdMs,
+    });
+  }
+
+  private transitionGazeReliabilityStatus(
+    nowMs: number,
+    valid: boolean,
+    invalidReason: GazeInvalidReason | null,
+  ): void {
+    const nextStatus: GazeSourceStatus = valid ? "valid" : "invalid";
+    if (
+      this.gazeReliabilityStartMs === null ||
+      this.gazeReliabilityCurrentStatus === null ||
+      this.gazeReliabilityCurrentStatusStartMs === null
+    ) {
+      this.initializeGazeReliabilityStatus(nowMs, valid, invalidReason);
+      return;
+    }
+
+    this.pushGazeReliabilitySegment(nowMs);
+
+    this.gazeReliabilityCurrentStatus = nextStatus;
+    this.gazeReliabilityCurrentInvalidReason = valid ? null : invalidReason;
+    this.gazeReliabilityCurrentStatusStartMs = nowMs;
+
+    this.reporter.emit("gaze.source_status_changed", {
+      gaze_source: "backend",
+      status: nextStatus,
+      invalid_reason: valid ? null : invalidReason,
+      condition: this.condition ?? null,
+      step_id: this.stepId ?? null,
+      elapsed_ms_since_step_start: this.roundMs(nowMs - this.gazeReliabilityStartMs),
+      stale_threshold_ms: this.gazeReliabilityStaleThresholdMs,
+    });
+  }
+
+  private pushGazeReliabilitySegment(nowMs: number): void {
+    if (
+      this.gazeReliabilityCurrentStatus === null ||
+      this.gazeReliabilityCurrentStatusStartMs === null ||
+      this.gazeReliabilityStartMs === null
+    ) {
+      return;
+    }
+
+    const startMs = this.gazeReliabilityCurrentStatusStartMs - this.gazeReliabilityStartMs;
+    const endMs = nowMs - this.gazeReliabilityStartMs;
+    this.gazeReliabilitySegments.push({
+      status: this.gazeReliabilityCurrentStatus,
+      invalid_reason: this.gazeReliabilityCurrentInvalidReason,
+      start_ms: this.roundMs(startMs),
+      end_ms: this.roundMs(endMs),
+      duration_ms: this.roundMs(endMs - startMs),
+    });
+  }
+
+  private flushGazeReliabilitySummary(nowMs: number): void {
+    if (
+      this.gazeProviderType !== "backend" ||
+      this.gazeReliabilityStartMs === null ||
+      this.gazeReliabilityCurrentStatus === null ||
+      this.gazeReliabilityCurrentStatusStartMs === null
+    ) {
+      this.resetGazeReliabilityTracking();
+      return;
+    }
+
+    this.pushGazeReliabilitySegment(nowMs);
+
+    const totalMs = this.roundMs(nowMs - this.gazeReliabilityStartMs);
+    const validMs = this.roundMs(
+      this.gazeReliabilitySegments
+        .filter((segment) => segment.status === "valid")
+        .reduce((sum, segment) => sum + segment.duration_ms, 0),
+    );
+    const invalidMs = this.roundMs(
+      this.gazeReliabilitySegments
+        .filter((segment) => segment.status === "invalid")
+        .reduce((sum, segment) => sum + segment.duration_ms, 0),
+    );
+    const dropoutCount = this.gazeReliabilitySegments
+      .filter((segment) => segment.status === "invalid")
+      .length;
+    const invalidMsByReason: Partial<Record<GazeInvalidReason, number>> = {};
+    const invalidSegmentCountByReason: Partial<Record<GazeInvalidReason, number>> = {};
+    for (const segment of this.gazeReliabilitySegments) {
+      if (segment.status !== "invalid" || segment.invalid_reason === null) continue;
+      invalidMsByReason[segment.invalid_reason] = this.roundMs(
+        (invalidMsByReason[segment.invalid_reason] ?? 0) + segment.duration_ms,
+      );
+      invalidSegmentCountByReason[segment.invalid_reason] = (
+        invalidSegmentCountByReason[segment.invalid_reason] ?? 0
+      ) + 1;
+    }
+
+    this.reporter.emit("gaze.source_timeline_summary", {
+      gaze_source: "backend",
+      condition: this.condition ?? null,
+      step_id: this.stepId ?? null,
+      total_ms: totalMs,
+      valid_ms: validMs,
+      invalid_ms: invalidMs,
+      valid_ratio: totalMs > 0 ? Number((validMs / totalMs).toFixed(4)) : null,
+      dropout_count: dropoutCount,
+      invalid_ms_by_reason: invalidMsByReason,
+      invalid_segment_count_by_reason: invalidSegmentCountByReason,
+      stale_threshold_ms: this.gazeReliabilityStaleThresholdMs,
+      segments: this.gazeReliabilitySegments,
+    });
+
+    this.resetGazeReliabilityTracking();
+  }
+
+  private resetGazeReliabilityTracking(): void {
+    this.gazeReliabilityStartMs = null;
+    this.gazeReliabilityCurrentStatus = null;
+    this.gazeReliabilityCurrentInvalidReason = null;
+    this.gazeReliabilityCurrentStatusStartMs = null;
+    this.gazeReliabilitySegments = [];
+  }
+
+  private roundMs(value: number): number {
+    return Number(value.toFixed(1));
+  }
+
+  private stepElapsedMs(nowMs: number): number | null {
+    return this.conversationStepStartMs !== null
+      ? this.roundMs(nowMs - this.conversationStepStartMs)
+      : null;
+  }
+
+  private createSpyMetricsSummaryState(): SpyMetricsSummaryState {
+    return {
+      trackedMs: 0,
+      lastUpdateMs: null,
+      lastZoneId: null,
+      lastEyeContactState: "baseline",
+      lastSuspicionValue: null,
+      lastOverallSuspicionValue: null,
+      lastRapportValue: null,
+      lastRapportMultiplier: null,
+      dwellMsByZone: new Map(),
+      eyeContactStateMs: {
+        baseline: 0,
+        gazeaware_pending: 0,
+        gazeaware: 0,
+        gaze_break: 0,
+      },
+      suspicionArea: 0,
+      overallSuspicionArea: 0,
+      rapportArea: 0,
+      rapportMultiplierArea: 0,
+      branchHistory: [],
+    };
+  }
+
+  private normalizeEyeContactState(state: string): EyeContactStateKey {
+    if (state === "gazeaware_pending" || state === "gazeaware" || state === "gaze_break") {
+      return state;
+    }
+    return "baseline";
+  }
+
+  private accumulateSpyMetricsSummary(
+    nowMs: number,
+    input: {
+      zoneId: string | null;
+      eyeContactState: EyeContactStateKey;
+      suspicionValue: number | null;
+      overallSuspicionValue: number | null;
+      rapportValue: number | null;
+      rapportMultiplier: number | null;
+    },
+  ): void {
+    const summary = this.spyMetricsSummary;
+
+    if (summary.lastUpdateMs !== null) {
+      const dtMs = Math.max(0, nowMs - summary.lastUpdateMs);
+      summary.trackedMs += dtMs;
+
+      if (summary.lastZoneId !== null) {
+        summary.dwellMsByZone.set(
+          summary.lastZoneId,
+          (summary.dwellMsByZone.get(summary.lastZoneId) ?? 0) + dtMs,
+        );
+      }
+
+      summary.eyeContactStateMs[summary.lastEyeContactState] += dtMs;
+
+      if (summary.lastSuspicionValue !== null) {
+        summary.suspicionArea += summary.lastSuspicionValue * dtMs;
+      }
+      if (summary.lastOverallSuspicionValue !== null) {
+        summary.overallSuspicionArea += summary.lastOverallSuspicionValue * dtMs;
+      }
+      if (summary.lastRapportValue !== null) {
+        summary.rapportArea += summary.lastRapportValue * dtMs;
+      }
+      if (summary.lastRapportMultiplier !== null) {
+        summary.rapportMultiplierArea += summary.lastRapportMultiplier * dtMs;
+      }
+    }
+
+    summary.lastUpdateMs = nowMs;
+    summary.lastZoneId = input.zoneId;
+    summary.lastEyeContactState = input.eyeContactState;
+    summary.lastSuspicionValue = input.suspicionValue;
+    summary.lastOverallSuspicionValue = input.overallSuspicionValue;
+    summary.lastRapportValue = input.rapportValue;
+    summary.lastRapportMultiplier = input.rapportMultiplier;
+  }
+
+  private flushSpyMetricsSummary(nowMs: number): void {
+    const summary = this.spyMetricsSummary;
+    if (summary.lastUpdateMs !== null) {
+      this.accumulateSpyMetricsSummary(nowMs, {
+        zoneId: summary.lastZoneId,
+        eyeContactState: summary.lastEyeContactState,
+        suspicionValue: summary.lastSuspicionValue,
+        overallSuspicionValue: summary.lastOverallSuspicionValue,
+        rapportValue: summary.lastRapportValue,
+        rapportMultiplier: summary.lastRapportMultiplier,
+      });
+    }
+
+    const trackerSnapshot = this.p1ZoneTracker?.snapshot ?? null;
+    const totalTrackedMs = this.roundMs(summary.trackedMs);
+
+    this.reporter.emit("spy.metrics_summary", {
+      condition: this.condition ?? null,
+      step_id: this.stepId ?? null,
+      total_tracked_ms: totalTrackedMs,
+      fixation_count_total: trackerSnapshot?.fixation.total_count ?? 0,
+      fixation_count_per_zone: trackerSnapshot?.fixation.per_zone_counts ?? {},
+      dwell_ms_per_zone: Object.fromEntries(
+        Array.from(summary.dwellMsByZone.entries()).map(([zoneId, dwellMs]) => [
+          zoneId,
+          this.roundMs(dwellMs),
+        ]),
+      ),
+      eye_contact_state_ms: Object.fromEntries(
+        Object.entries(summary.eyeContactStateMs).map(([state, ms]) => [state, this.roundMs(ms)]),
+      ),
+      average_suspicion: totalTrackedMs > 0
+        ? Number((summary.suspicionArea / totalTrackedMs).toFixed(4))
+        : null,
+      average_overall_suspicion: totalTrackedMs > 0
+        ? Number((summary.overallSuspicionArea / totalTrackedMs).toFixed(4))
+        : null,
+      average_rapport: totalTrackedMs > 0
+        ? Number((summary.rapportArea / totalTrackedMs).toFixed(4))
+        : null,
+      average_rapport_multiplier: totalTrackedMs > 0
+        ? Number((summary.rapportMultiplierArea / totalTrackedMs).toFixed(4))
+        : null,
+      branch_history: summary.branchHistory,
+    });
+
+    this.spyMetricsSummary = this.createSpyMetricsSummaryState();
   }
 
   /** Sync study context to backend for high-rate Tobii research logging. */

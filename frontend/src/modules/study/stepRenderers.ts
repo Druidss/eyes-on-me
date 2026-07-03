@@ -14,6 +14,7 @@ import { playZoomTransitionSfx } from "../../shared/sfx.js";
 export interface StepCallbacks {
   advance: () => void;
   createNextButton: (label?: string) => HTMLButtonElement;
+  emitEvent?: (eventType: string, data?: Record<string, unknown>) => void;
 }
 
 // --- Info ---

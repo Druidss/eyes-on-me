@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+import shutil
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,6 +21,39 @@ class LoggingService:
 
     def __init__(self, log_dir: str | None = None) -> None:
         self._log_dir = Path(log_dir or settings.log_dir)
+
+    def copy_session_log_to_labeled_name(
+        self,
+        session_id: str,
+        participant_name: str | None,
+    ) -> dict[str, str]:
+        """Copy a completed session log into ``log_dir/labeled`` using a participant label.
+
+        The original ``{session_id}.jsonl`` remains the canonical source log.
+        The copied file is for easier manual browsing after the session ends.
+        """
+        self._log_dir.mkdir(parents=True, exist_ok=True)
+        source = self._log_dir / f"{session_id}.jsonl"
+        if not source.exists():
+            raise FileNotFoundError(f"Session log not found: {source}")
+
+        labeled_dir = self._log_dir / "labeled"
+        labeled_dir.mkdir(parents=True, exist_ok=True)
+
+        base_label = self._slugify_label(participant_name)
+        target = labeled_dir / f"{base_label}.jsonl"
+        suffix = 1
+        while target.exists():
+            target = labeled_dir / f"{base_label}_{suffix}.jsonl"
+            suffix += 1
+
+        shutil.copy2(source, target)
+        return {
+            "session_id": session_id,
+            "source": str(source),
+            "target": str(target),
+            "label": target.stem,
+        }
 
     # -- Session management --------------------------------------------------
 
@@ -77,6 +112,12 @@ class LoggingService:
                 logger.exception("Failed to write events for session %s", session_id)
 
         return written
+
+    def _slugify_label(self, value: str | None) -> str:
+        text = (value or "").strip().lower()
+        text = re.sub(r"[^a-z0-9]+", "_", text)
+        text = text.strip("_")
+        return text or "unknown"
 
 
 # Module-level singleton — used by route handlers.

@@ -1664,6 +1664,47 @@ body:has([data-step-type="intro"]) {
   color: var(--text-dark-secondary);
 }
 
+/* Calibration prep uses the same fullscreen dark stage as calibration,
+   but with only one centered instruction line and the continue button. */
+#app.conversation-active .study-screen[data-step-id="calibration_prep"] {
+  position: relative;
+  grid-template-rows: 1fr;
+}
+
+#app.conversation-active .study-screen[data-step-id="calibration_prep"] > h2 {
+  display: none;
+}
+
+#app.conversation-active .study-screen[data-step-id="calibration_prep"] > p {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  margin: 0;
+  padding: 0;
+  width: min(34rem, calc(100vw - 3rem));
+  max-width: 34rem;
+  background: none;
+  border-radius: 0;
+  color: var(--text-dark-primary);
+  font-family: var(--font-geist);
+  font-size: clamp(1.1rem, 1.5vw, 1.35rem);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.5;
+  text-align: center;
+}
+
+#app.conversation-active .study-screen[data-step-id="calibration_prep"] > .study-btn {
+  position: absolute;
+  left: 50%;
+  bottom: 2rem;
+  transform: translateX(-50%);
+  z-index: 2;
+  margin: 0;
+}
+
 /* ====== Quiz / Debriefing step ====== */
 
 [data-quiz-mode="true"].study-screen {

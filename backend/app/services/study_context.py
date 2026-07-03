@@ -9,6 +9,7 @@ without being limited by HTTP polling.
 from __future__ import annotations
 
 import threading
+import time
 from dataclasses import dataclass
 
 
@@ -17,6 +18,7 @@ class _Context:
     session_id: str | None = None
     step_id: str | None = None
     condition: str | None = None
+    step_started_monotonic: float | None = None
 
 
 class StudyContext:
@@ -33,10 +35,21 @@ class StudyContext:
         condition: str | None = None,
     ) -> None:
         with self._lock:
+            same_step = (
+                self._ctx.session_id == session_id
+                and self._ctx.step_id == step_id
+                and self._ctx.condition == condition
+            )
+            step_started_monotonic = (
+                self._ctx.step_started_monotonic
+                if same_step
+                else (time.perf_counter() if session_id and step_id else None)
+            )
             self._ctx = _Context(
                 session_id=session_id,
                 step_id=step_id,
                 condition=condition,
+                step_started_monotonic=step_started_monotonic,
             )
 
     def current(self) -> _Context:

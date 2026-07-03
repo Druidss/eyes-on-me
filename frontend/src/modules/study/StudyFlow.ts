@@ -143,7 +143,9 @@ export class StudyFlow {
     this.destroyCalibration();
     const step = this.currentStep();
     this.container.innerHTML = "";
-    const isFullscreen = step.type === "conversation" || step.type === "calibration";
+    const isFullscreen = step.type === "conversation" ||
+      step.type === "calibration" ||
+      step.id === "calibration_prep";
     this.container.classList.toggle("conversation-active", isFullscreen);
 
     const wrapper = document.createElement("div");
@@ -154,6 +156,8 @@ export class StudyFlow {
     const callbacks: StepCallbacks = {
       advance: () => this.advance(),
       createNextButton: (label?: string) => this.createNextButton(label),
+      emitEvent: (eventType: string, data?: Record<string, unknown>) =>
+        this.reporter.emit(eventType, data),
     };
 
     // Resolve condition from assignment (not from static flow config)
@@ -215,11 +219,13 @@ export class StudyFlow {
       case "questionnaire":
         renderQuestionnaireStep(
           wrapper, step, this.config,
-          (result) => {
+          async (result) => {
             this._results.push(result);
             if (result.participantName) this.participantName = result.participantName;
             this.emitQuestionnaireSubmittedIfResearch(step, result);
             if (this.stepIndex === this.config.flow.steps.length - 1) {
+              await this.reporter.flush();
+              await this.copyLabeledSessionLog(result.participantName ?? this.participantName);
               this.downloadSessionReport();
             }
             this.advance();
@@ -356,5 +362,23 @@ export class StudyFlow {
       condition: this.stepConditionMap.get(this.stepIndex) ?? null,
       answers: result.answers,
     });
+  }
+
+  private async copyLabeledSessionLog(participantName: string | null | undefined): Promise<void> {
+    try {
+      const res = await fetch(`${apiBase()}/api/logs/copy-labeled`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: this.sessionId,
+          participant_name: participantName ?? null,
+        }),
+      });
+      if (!res.ok) {
+        console.warn(`[StudyFlow] labeled log copy failed: ${res.status}`);
+      }
+    } catch (error) {
+      console.warn("[StudyFlow] labeled log copy request failed", error);
+    }
   }
 }

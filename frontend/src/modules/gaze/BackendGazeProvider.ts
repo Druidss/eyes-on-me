@@ -1,9 +1,19 @@
 import type { GazePoint, GazeProvider } from "./GazeProvider.js";
 
 type Transport = "idle" | "connecting" | "ws" | "polling";
+export type GazeInvalidReason =
+  | "no_sample_yet"
+  | "backend_reported_invalid"
+  | "ws_stale_timeout"
+  | "ws_disconnected"
+  | "ws_connect_failed"
+  | "poll_http_error"
+  | "poll_fetch_failed";
 
 const WS_RECONNECT_MS = 3000;
-const WS_STALE_MS = 500;
+// Match the backend gaze_store stale timeout so frontend validity and
+// backend validity use the same "usable gaze" definition.
+const WS_STALE_MS = 150;
 
 /**
  * Gaze source that receives data from the backend Tobii adapter.
@@ -28,6 +38,7 @@ export class BackendGazeProvider implements GazeProvider {
   private readonly intervalMs: number;
   private point: GazePoint = { x: 0, y: 0 };
   private _lastValid = false;
+  private _lastInvalidReason: GazeInvalidReason | null = "no_sample_yet";
 
   private ws: WebSocket | null = null;
   private transport: Transport = "idle";
@@ -51,6 +62,10 @@ export class BackendGazeProvider implements GazeProvider {
     return this._lastValid;
   }
 
+  get lastInvalidReason(): GazeInvalidReason | null {
+    return this._lastInvalidReason;
+  }
+
   start(): void {
     if (this.transport !== "idle") return;
     this.intentionalClose = false;
@@ -61,6 +76,7 @@ export class BackendGazeProvider implements GazeProvider {
     this.intentionalClose = true;
     this.transport = "idle";
     this._lastValid = false;
+    this._lastInvalidReason = null;
 
     const ws = this.ws;
     this.ws = null;
@@ -83,6 +99,7 @@ export class BackendGazeProvider implements GazeProvider {
       sock = new WebSocket(this.wsUrl);
     } catch {
       // Constructor threw (bad URL, security restriction, etc.)
+      this.setInvalidReason("ws_connect_failed");
       this.fallbackToPolling();
       return;
     }
@@ -102,9 +119,9 @@ export class BackendGazeProvider implements GazeProvider {
         const data = JSON.parse(e.data as string);
         if (data.valid) {
           this.point = { x: data.x, y: data.y };
-          this._lastValid = true;
+          this.setValid();
         } else {
-          this._lastValid = false;
+          this.setInvalidReason("backend_reported_invalid");
         }
       } catch {
         // Malformed message — ignore
@@ -121,6 +138,7 @@ export class BackendGazeProvider implements GazeProvider {
       if (this.intentionalClose || this.transport === "idle") return;
       this.ws = null;
       this.clearStaleTimer();
+      this.setInvalidReason("ws_disconnected");
       this.fallbackToPolling();
     };
   }
@@ -147,19 +165,19 @@ export class BackendGazeProvider implements GazeProvider {
     try {
       const res = await fetch(this.pollUrl);
       if (!res.ok) {
-        this._lastValid = false;
+        this.setInvalidReason("poll_http_error");
         return;
       }
       const data = await res.json();
       if (data.valid) {
         this.point = { x: data.x, y: data.y };
-        this._lastValid = true;
+        this.setValid();
       } else {
-        this._lastValid = false;
+        this.setInvalidReason("backend_reported_invalid");
       }
     } catch {
       // Backend unreachable — keep last known point.
-      this._lastValid = false;
+      this.setInvalidReason("poll_fetch_failed");
     }
   }
 
@@ -169,8 +187,18 @@ export class BackendGazeProvider implements GazeProvider {
     this.clearStaleTimer();
     this.staleTimer = setTimeout(() => {
       this.staleTimer = null;
-      this._lastValid = false;
+      this.setInvalidReason("ws_stale_timeout");
     }, WS_STALE_MS);
+  }
+
+  private setValid(): void {
+    this._lastValid = true;
+    this._lastInvalidReason = null;
+  }
+
+  private setInvalidReason(reason: GazeInvalidReason): void {
+    this._lastValid = false;
+    this._lastInvalidReason = reason;
   }
 
   // -- Cleanup helpers -------------------------------------------------------

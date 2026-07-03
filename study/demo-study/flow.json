@@ -56,9 +56,16 @@
       ]
     },
     {
+      "id": "calibration_prep",
+      "type": "info",
+      "title": "",
+      "content": "Look at each highlighted target until it fills up.",
+      "button_label": "Start Validation"
+    },
+    {
       "id": "calibration",
       "type": "calibration",
-      "title": "Gaze Verification"
+      "title": "Gaze Validation"
     },
     {
       "id": "condition1",

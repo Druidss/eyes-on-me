@@ -59,9 +59,11 @@ def _flush_research_buffer(buffer: list[dict]) -> None:
                     "x_raw_px": s["x_raw_px"],
                     "y_raw_px": s["y_raw_px"],
                     "seq": s["seq"],
+                    "capture_adapter": "tobii_stream",
                     "gaze_source": "backend",
                     "step_id": s["step_id"],
                     "condition": s["condition"],
+                    "elapsed_ms_since_step_start": s["elapsed_ms_since_step_start"],
                 },
             )
         )
@@ -145,6 +147,11 @@ def _zmq_loop(endpoint: str, screen_w: int, screen_h: int) -> None:
                             "seq": seq,
                             "step_id": ctx.step_id,
                             "condition": ctx.condition,
+                            "elapsed_ms_since_step_start": (
+                                round((time.perf_counter() - ctx.step_started_monotonic) * 1000, 1)
+                                if ctx.step_started_monotonic is not None
+                                else None
+                            ),
                         }
                     )
                     if len(buffer) >= _RESEARCH_FLUSH_SIZE:
