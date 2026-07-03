@@ -27,7 +27,13 @@ FRONTEND_PID=$!
 echo
 echo "===================================================="
 echo " Servers have been launched in the background!"
-echo " Please open: http://localhost:5173/?p1demo"
+echo
+echo " For testing (with debug/bounding boxes):"
+echo " http://localhost:5173/?p1demo"
+echo
+echo " For participants (clean user study):"
+echo " http://localhost:5173/"
+echo
 echo " Press Ctrl+C to stop both servers."
 echo "===================================================="
 echo

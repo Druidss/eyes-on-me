@@ -20,7 +20,12 @@ start "Frontend Dev Server" cmd /k "cd /d %PROJECT_DIR%frontend && set PATH=%PRO
 echo.
 echo ====================================================
 echo  Servers have been launched in separate windows!
-echo  Please open: http://localhost:5173/?p1demo
+echo.
+echo  For testing (with debug/bounding boxes):
+echo  http://localhost:5173/?p1demo
+echo.
+echo  For participants (clean user study):
+echo  http://localhost:5173/
 echo ====================================================
 echo.
 pause
