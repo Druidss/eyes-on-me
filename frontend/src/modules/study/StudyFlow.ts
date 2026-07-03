@@ -22,7 +22,7 @@ import {
   type StepCallbacks,
 } from "./stepRenderers.js";
 import { renderCalibrationStep } from "./CalibrationStepRenderer.js";
-import { buildSessionReportMarkdown, downloadTextFile, slugifyForFilename } from "./sessionReport.js";
+import { buildSessionReportMarkdown, downloadTextFile, downloadJsonFile, slugifyForFilename } from "./sessionReport.js";
 
 /** Fetches the full StudyConfig from the backend. */
 export async function fetchStudyConfig(
@@ -338,6 +338,22 @@ export class StudyFlow {
     const namePart = slugifyForFilename(this.participantName ?? "anonymous");
     const stamp = new Date().toISOString().replace(/[:.]/g, "-");
     downloadTextFile(`eyes-on-me_${namePart}_${stamp}.md`, markdown);
+
+    // Also download as a structured JSON file (convenient for programmatic parsing)
+    const jsonReport = {
+      study_id: this.config.meta.id,
+      study_name: this.config.meta.name,
+      study_version: this.config.meta.version,
+      session_id: this.sessionId,
+      participant_name: this.participantName,
+      timestamp: new Date().toISOString(),
+      results: this._results.map((r) => ({
+        questionnaire_id: r.questionnaire_id,
+        score: r.score ?? null,
+        answers: r.answers,
+      })),
+    };
+    downloadJsonFile(`eyes-on-me_${namePart}_${stamp}.json`, JSON.stringify(jsonReport, null, 2));
   }
 
   /** Emit form submission (research mode — called via callback). */

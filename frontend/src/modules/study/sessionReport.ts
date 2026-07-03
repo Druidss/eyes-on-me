@@ -87,6 +87,19 @@ export function downloadTextFile(filename: string, content: string): void {
   URL.revokeObjectURL(url);
 }
 
+/** Triggers a browser download of `content` as a UTF-8 JSON file named `filename`. */
+export function downloadJsonFile(filename: string, content: string): void {
+  const blob = new Blob([content], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 /** Sanitizes a free-text name for use in a filename. */
 export function slugifyForFilename(value: string): string {
   return value.trim().replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "anonymous";
