@@ -50,7 +50,7 @@ export class OverallSuspicionMetric {
     this.minValue = options.minValue ?? 0;
     this.maxValue = options.maxValue ?? 100;
     this.risePerSecond = options.risePerSecond ?? 1.4;
-    this.fallPerSecond = options.fallPerSecond ?? 0.18;
+    this.fallPerSecond = options.fallPerSecond ?? 0.10;
     this.thresholds = {
       ...DEFAULT_THRESHOLDS,
       ...options.thresholds,

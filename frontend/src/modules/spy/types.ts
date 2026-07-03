@@ -6,7 +6,11 @@ import type { GazeState } from "../gaze/GazeAwarenessMachine.js";
 
 
 
-export type SpyZoneKind = "officer_face" | "officer_body" | "evidence" | "background";
+export type SpyZoneKind =
+  | "officer_face"
+  | "officer_body"
+  | "evidence"
+  | "background";
 
 export type SpyZoneId = string;
 
