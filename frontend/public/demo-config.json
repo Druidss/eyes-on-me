@@ -86,9 +86,16 @@
         ]
       },
       {
+        "id": "calibration_prep",
+        "type": "info",
+        "title": "",
+        "content": "Look at each highlighted target until it fills up.",
+        "button_label": "Start Validation"
+      },
+      {
         "id": "calibration",
         "type": "calibration",
-        "title": "Gaze Verification"
+        "title": "Gaze Validation"
       },
       {
         "id": "condition1",
@@ -127,11 +134,12 @@
             "type": "choice",
             "options": [
               "The 7th",
-              "The 14th",
+              "The 24",
               "The 21st",
+              "The 14",
               "I don't know"
             ],
-            "answer": 1,
+            "answer": 3,
             "required": true,
             "section_key": "A",
             "section_title": "Visual Memory",
@@ -145,6 +153,7 @@
               "A black briefcase",
               "A leather bag",
               "A brown backpack",
+              "A metal toolbox",
               "I don't know"
             ],
             "answer": 1,
@@ -159,6 +168,7 @@
               "Red",
               "Green",
               "Blue",
+              "Yellow",
               "I don't know"
             ],
             "answer": 2,
@@ -173,6 +183,7 @@
               "Harbor Warehouse No. 5",
               "Old Embankment No. 12",
               "Industrial Park No. 8",
+              "Sector Seven Station",
               "I don't know"
             ],
             "answer": 1,
@@ -187,6 +198,7 @@
               "#A7-12",
               "#B3-08",
               "#C5-15",
+              "#D9-04",
               "I don't know"
             ],
             "answer": 0,
@@ -199,11 +211,12 @@
             "type": "choice",
             "options": [
               "Ext. 301",
-              "Ext. 402",
+              "Ext. 404",
               "Ext. 504",
+              "Ext. 402",
               "I don't know"
             ],
-            "answer": 1,
+            "answer": 3,
             "required": true,
             "section_key": "A"
           },
@@ -215,7 +228,8 @@
               "Operation Midnight",
               "Operation Aurora",
               "Operation Silence",
-              "Operation Storm"
+              "Operation Storm",
+              "I don't know"
             ],
             "answer": 1,
             "required": true,
@@ -231,7 +245,8 @@
               "The Neptune",
               "The Hermes",
               "The Poseidon",
-              "The Artemis"
+              "The Artemis",
+              "I don't know"
             ],
             "answer": 1,
             "required": true,
@@ -245,7 +260,8 @@
               "01:00 AM",
               "02:30 AM",
               "03:00 AM",
-              "04:15 AM"
+              "04:00",
+              "I don't know"
             ],
             "answer": 2,
             "required": true,
@@ -257,11 +273,12 @@
             "type": "choice",
             "options": [
               "Michael",
-              "Thomas",
+              "Robert",
               "James",
+              "Thomas",
               "I don't know"
             ],
-            "answer": 1,
+            "answer": 3,
             "required": true,
             "section_key": "B"
           },
@@ -273,6 +290,7 @@
               "Channel 8",
               "Channel 12",
               "Channel 16",
+              "Channel 24",
               "I don't know"
             ],
             "answer": 2,
@@ -285,11 +303,12 @@
             "type": "choice",
             "options": [
               "Blue Moon",
-              "Red Sky",
+              "Red Sun",
               "Green Light",
+              "Red Sky",
               "I don't know"
             ],
-            "answer": 1,
+            "answer": 3,
             "required": true,
             "section_key": "B"
           },
@@ -301,6 +320,7 @@
               "Level 2",
               "Level 3",
               "Level 4",
+              "Level 5",
               "I don't know"
             ],
             "answer": 2,
@@ -317,6 +337,7 @@
               "Red security card",
               "Blue keycard",
               "Metal key bundle",
+              "Magnetic fob",
               "I don't know"
             ],
             "answer": 1,
