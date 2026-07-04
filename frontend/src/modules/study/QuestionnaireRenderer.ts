@@ -12,7 +12,7 @@ export interface QuestionnaireResult {
 
 const CHECK_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg>`;
 const X_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
-const LETTERS = ["A", "B", "C", "D"];
+const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
 /**
  * Renders a questionnaire into a container and collects answers.
@@ -197,7 +197,7 @@ function renderQuizQuestionnaire(
       <div class="quiz-opts">
         ${(item.options ?? []).map((opt, i) => `
           <button type="button" class="quiz-opt" data-item-id="${item.id}" data-index="${i}">
-            <span class="quiz-opt-key">${LETTERS[i]}</span>
+            <span class="quiz-opt-key">${LETTERS[i] ?? String.fromCharCode(65 + i)}</span>
             <span class="quiz-opt-text">${opt}</span>
             <span class="quiz-opt-mark"></span>
           </button>
