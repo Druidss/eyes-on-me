@@ -21,7 +21,8 @@ Before running the start scripts or launching the servers for the first time, yo
    # Linux / macOS:
    source .venv/bin/activate
 
-   pip install -e ".[dev]"
+   # Installing dev and tobii dependencies is required for eye-tracking
+   pip install -e ".[dev,tobii]"
    ```
 
 ### 2. Frontend Setup
@@ -33,6 +34,18 @@ Before running the start scripts or launching the servers for the first time, yo
    ```bash
    npm ci
    ```
+
+### 3. Environment Configuration (`.env`)
+To run the project with the Tobii eye tracker, you must create a `.env` file inside the `backend` folder:
+1. In the project root, copy the `.env.example` template to `backend/.env`:
+   ```bash
+   cp .env.example backend/.env
+   ```
+2. Open `backend/.env` and edit configurations as needed:
+   * **Tobii Eye Tracking:** Set `TOBII_ENABLED=true` to enable eye-gaze control.
+     * **Tobii Pro SDK:** (Recommended / Default if available) Connects directly to Tobii Pro eye trackers (such as the Tobii Pro Spark). This requires the `tobii_research` library. You can either install it in your environment or place the SDK files in a `tools/SDK/` folder.
+     * **ZMQ Fallback (`TobiiStream.exe`):** Used for standard consumer eye trackers (such as the Tobii EyeX or Tracker 4C). Set `TOBIISTREAM_PATH=tools/TobiiStream/TobiiStream/TobiiStream.exe`. 
+       * *Setup:* Download the public ZMQ bridge [TobiiStream.zip](http://web.tecnico.ulisboa.pt/augusto.esteves/GazeTrack/TobiiStream.zip), unzip it, and place its contents inside a `tools/TobiiStream/` folder in the project root.
 
 ---
 
